@@ -308,6 +308,10 @@ export function useHandTracking(
 
       handsRef.current = hands;
 
+      // Explicitly initialize WASM model before processing frames
+      await hands.initialize();
+      console.log("MediaPipe Hands initialized successfully");
+
       // Use a frame loop instead of MediaPipe Camera to avoid double getUserMedia
       let animId: number;
       let consecutiveErrors = 0;
