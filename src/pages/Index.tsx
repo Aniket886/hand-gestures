@@ -7,6 +7,7 @@ import DemoPresentation from "@/components/DemoPresentation";
 import GestureLegend from "@/components/GestureLegend";
 import FeedbackControls from "@/components/FeedbackControls";
 import GestureSettingsModal from "@/components/GestureSettingsModal";
+import AirWritingCanvas from "@/components/AirWritingCanvas";
 import { triggerGestureFeedback, resumeAudioContext, type FeedbackSettings } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings } from "lucide-react";
@@ -68,7 +69,7 @@ const Index = () => {
     }
   }, [mappings, executeAction]);
 
-  const { isActive, gesture, fps, start, stop } = useHandTracking(
+  const { isActive, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction
@@ -156,7 +157,15 @@ const Index = () => {
                 </div>
               )}
 
-              {isActive && <GestureHUD gesture={gesture} fps={fps} isActive={isActive} />}
+              {isActive && (
+                <GestureHUD
+                  gesture={gesture}
+                  fps={fps}
+                  isActive={isActive}
+                  hands={hands}
+                  isWriting={isWriting}
+                />
+              )}
             </div>
 
             <div className="mt-4">
@@ -166,18 +175,38 @@ const Index = () => {
             <FeedbackControls settings={feedbackSettings} onChange={setFeedbackSettings} />
           </div>
 
-          {/* Presentation area */}
+          {/* Presentation area with air-writing overlay */}
           <div className="lg:col-span-2">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="h-full min-h-[400px] lg:min-h-[500px]"
+              className="relative h-full min-h-[400px] lg:min-h-[500px]"
             >
               <DemoPresentation currentSlide={currentSlide} totalSlides={TOTAL_SLIDES} />
+
+              {/* Air-writing canvas overlaid on presentation */}
+              {isActive && (
+                <div className="absolute inset-0 z-30">
+                  <AirWritingCanvas
+                    writingTip={writingTip}
+                    isWriting={isWriting}
+                    isActive={isActive}
+                  />
+                </div>
+              )}
             </motion.div>
 
-            <div className="flex items-center justify-center gap-4 mt-4">
+            {/* Tip */}
+            {isActive && (
+              <div className="mt-2 text-center">
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  ✏️ Point with index finger only to draw on the slide • Use other gestures to navigate
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-center gap-4 mt-3">
               <button
                 onClick={() => setCurrentSlide((s) => Math.max(s - 1, 0))}
                 disabled={currentSlide === 0}
@@ -200,7 +229,6 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Settings Modal */}
       <GestureSettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
