@@ -197,6 +197,14 @@ const Index = () => {
                   isWriting={isWriting}
                 />
               )}
+
+              {isActive && featureFlags.faceEmotion && (
+                <EmotionHUD
+                  emotion={emotion}
+                  isLoading={emotionLoading}
+                  isActive={isActive}
+                />
+              )}
             </div>
 
             <div className="mt-4">
