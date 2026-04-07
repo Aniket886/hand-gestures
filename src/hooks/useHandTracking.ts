@@ -4,22 +4,43 @@ import { classifyGesture, detectSwipe, resetSwipeHistory, type GestureResult, ty
 type Hands = any;
 type Results = any;
 
-let handsRuntimeLoaded = false;
-
-async function loadHandsRuntime(): Promise<new (config: any) => any> {
-  if (!handsRuntimeLoaded) {
-    await import("@mediapipe/hands/hands.js");
-    handsRuntimeLoaded = true;
-  }
-  const HandsConstructor =
-    (globalThis as any).Hands || (window as any).Hands;
-  if (!HandsConstructor) {
-    throw new Error("MediaPipe Hands runtime failed to register global constructor");
-  }
-  return HandsConstructor;
-}
-
 const MEDIAPIPE_VERSION = "0.4.1675469240";
+const CDN_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${MEDIAPIPE_VERSION}`;
+
+let handsRuntimePromise: Promise<new (config: any) => any> | null = null;
+
+function loadHandsRuntime(): Promise<new (config: any) => any> {
+  if (handsRuntimePromise) return handsRuntimePromise;
+
+  handsRuntimePromise = new Promise((resolve, reject) => {
+    // If already loaded globally (e.g. from a previous session)
+    if ((window as any).Hands) {
+      resolve((window as any).Hands);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `${CDN_BASE}/hands.js`;
+    script.crossOrigin = "anonymous";
+    script.onload = () => {
+      const Ctor = (window as any).Hands;
+      if (Ctor) {
+        console.log("[HandTracking] MediaPipe Hands loaded from CDN");
+        resolve(Ctor);
+      } else {
+        handsRuntimePromise = null;
+        reject(new Error("MediaPipe Hands script loaded but global constructor not found"));
+      }
+    };
+    script.onerror = () => {
+      handsRuntimePromise = null;
+      reject(new Error("Failed to load MediaPipe Hands script from CDN"));
+    };
+    document.head.appendChild(script);
+  });
+
+  return handsRuntimePromise;
+}
 
 export interface HandData {
   landmarks: any[];
