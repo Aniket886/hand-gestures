@@ -322,7 +322,7 @@ export function useHandTracking(
                 measurements.push({ from: allTips[i].idx, to: allTips[j].idx, cm: cmDist });
 
                 if (shouldMeasure) {
-                  // Draw pill background
+                  // Draw pill + text flipped so it reads correctly on mirrored canvas
                   ctx.globalAlpha = 1;
                   ctx.shadowBlur = 0;
                   const label = `${cmDist} cm`;
@@ -330,16 +330,21 @@ export function useHandTracking(
                   const tw = ctx.measureText(label).width;
                   const pw = tw + 12;
                   const ph = 20;
+
+                  ctx.save();
+                  ctx.translate(mx, my);
+                  ctx.scale(-1, 1); // flip horizontally to counter CSS mirror
+
                   ctx.fillStyle = "rgba(0,0,0,0.7)";
                   ctx.beginPath();
-                  ctx.roundRect(mx - pw / 2, my - ph / 2, pw, ph, 6);
+                  ctx.roundRect(-pw / 2, -ph / 2, pw, ph, 6);
                   ctx.fill();
 
-                  // Draw text
                   ctx.fillStyle = "#fff";
                   ctx.textAlign = "center";
                   ctx.textBaseline = "middle";
-                  ctx.fillText(label, mx, my);
+                  ctx.fillText(label, 0, 0);
+                  ctx.restore();
                 }
               }
             }
