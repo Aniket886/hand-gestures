@@ -1,13 +1,15 @@
 import { useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useHandTracking } from "@/hooks/useHandTracking";
+import { useGestureMappings, type PresentationAction } from "@/hooks/useGestureMappings";
 import GestureHUD from "@/components/GestureHUD";
 import DemoPresentation from "@/components/DemoPresentation";
 import GestureLegend from "@/components/GestureLegend";
 import FeedbackControls from "@/components/FeedbackControls";
+import GestureSettingsModal from "@/components/GestureSettingsModal";
 import { triggerGestureFeedback, resumeAudioContext, type FeedbackSettings } from "@/lib/feedback";
-import { GESTURE_MAP, type GestureType } from "@/lib/gestures";
-import { Camera, CameraOff, Hand } from "lucide-react";
+import type { GestureType } from "@/lib/gestures";
+import { Camera, CameraOff, Hand, Settings } from "lucide-react";
 
 const TOTAL_SLIDES = 4;
 
@@ -15,6 +17,7 @@ const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings>({
     soundEnabled: true,
     hapticEnabled: true,
@@ -23,20 +26,49 @@ const Index = () => {
   const feedbackSettingsRef = useRef(feedbackSettings);
   feedbackSettingsRef.current = feedbackSettings;
 
-  const handleGestureAction = useCallback((gesture: GestureType) => {
-    const info = GESTURE_MAP[gesture];
-    if (info) {
-      triggerGestureFeedback(gesture, info.label, feedbackSettingsRef.current);
-    }
+  const {
+    mappings,
+    updateMapping,
+    updateEmoji,
+    updateLabel,
+    addCustomGesture,
+    removeCustomGesture,
+    resetToDefaults,
+    getActionForGesture,
+  } = useGestureMappings();
 
-    if (gesture === "pointing" || gesture === "swipe_left") {
-      setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1));
-    } else if (gesture === "peace" || gesture === "swipe_right") {
-      setCurrentSlide((s) => Math.max(s - 1, 0));
+  const getActionRef = useRef(getActionForGesture);
+  getActionRef.current = getActionForGesture;
+
+  const executeAction = useCallback((action: PresentationAction) => {
+    switch (action) {
+      case "next_slide":
+        setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1));
+        break;
+      case "prev_slide":
+        setCurrentSlide((s) => Math.max(s - 1, 0));
+        break;
+      case "first_slide":
+        setCurrentSlide(0);
+        break;
+      case "last_slide":
+        setCurrentSlide(TOTAL_SLIDES - 1);
+        break;
     }
   }, []);
 
-  const { isLoading, isActive, gesture, fps, start, stop } = useHandTracking(
+  const handleGestureAction = useCallback((gesture: GestureType) => {
+    const mapping = mappings.find((m) => m.gesture === gesture);
+    const label = mapping?.label || gesture;
+    triggerGestureFeedback(gesture, label, feedbackSettingsRef.current);
+
+    const action = getActionRef.current(gesture);
+    if (action !== "none") {
+      executeAction(action);
+    }
+  }, [mappings, executeAction]);
+
+  const { isActive, gesture, fps, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction
@@ -66,26 +98,35 @@ const Index = () => {
             </div>
           </div>
 
-          <button
-            onClick={isActive ? stop : handleStart}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-medium transition-all duration-300 ${
-              isActive
-                ? "bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20"
-                : "bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 glow-primary"
-            }`}
-          >
-            {isActive ? (
-              <>
-                <CameraOff className="w-4 h-4" />
-                Stop Camera
-              </>
-            ) : (
-              <>
-                <Camera className="w-4 h-4" />
-                Start Camera
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
+            >
+              <Settings className="w-4 h-4" />
+              Mappings
+            </button>
+            <button
+              onClick={isActive ? stop : handleStart}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-medium transition-all duration-300 ${
+                isActive
+                  ? "bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20"
+                  : "bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 glow-primary"
+              }`}
+            >
+              {isActive ? (
+                <>
+                  <CameraOff className="w-4 h-4" />
+                  Stop Camera
+                </>
+              ) : (
+                <>
+                  <Camera className="w-4 h-4" />
+                  Start Camera
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -118,12 +159,10 @@ const Index = () => {
               {isActive && <GestureHUD gesture={gesture} fps={fps} isActive={isActive} />}
             </div>
 
-            {/* Legend below webcam */}
             <div className="mt-4">
-              <GestureLegend activeGesture={gesture?.gesture ?? null} />
+              <GestureLegend activeGesture={gesture?.gesture ?? null} mappings={mappings} />
             </div>
 
-            {/* Feedback controls */}
             <FeedbackControls settings={feedbackSettings} onChange={setFeedbackSettings} />
           </div>
 
@@ -138,7 +177,6 @@ const Index = () => {
               <DemoPresentation currentSlide={currentSlide} totalSlides={TOTAL_SLIDES} />
             </motion.div>
 
-            {/* Manual controls */}
             <div className="flex items-center justify-center gap-4 mt-4">
               <button
                 onClick={() => setCurrentSlide((s) => Math.max(s - 1, 0))}
@@ -161,6 +199,19 @@ const Index = () => {
           </div>
         </div>
       </main>
+
+      {/* Settings Modal */}
+      <GestureSettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        mappings={mappings}
+        onUpdateAction={updateMapping}
+        onUpdateEmoji={updateEmoji}
+        onUpdateLabel={updateLabel}
+        onAddCustom={addCustomGesture}
+        onRemoveCustom={removeCustomGesture}
+        onReset={resetToDefaults}
+      />
     </div>
   );
 };
