@@ -12,11 +12,11 @@ export interface HandData {
 export interface HandTrackingState {
   isLoading: boolean;
   isActive: boolean;
+  error: string | null;
   gesture: GestureResult | null;
   landmarks: any[] | null;
   hands: HandData[];
   fps: number;
-  // Air-writing: index fingertip position (normalized 0-1) for writing hand
   writingTip: { x: number; y: number } | null;
   isWriting: boolean;
 }
