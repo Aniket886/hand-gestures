@@ -47,21 +47,8 @@ const Index = () => {
   const getActionRef = useRef(getActionForGesture);
   getActionRef.current = getActionForGesture;
 
-  const executeAction = useCallback((action: PresentationAction) => {
-    switch (action) {
-      case "next_slide":
-        setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1));
-        break;
-      case "prev_slide":
-        setCurrentSlide((s) => Math.max(s - 1, 0));
-        break;
-      case "first_slide":
-        setCurrentSlide(0);
-        break;
-      case "last_slide":
-        setCurrentSlide(TOTAL_SLIDES - 1);
-        break;
-    }
+  const executeAction = useCallback((_action: PresentationAction) => {
+    // Presentation actions are handled on the /present page
   }, []);
 
   const handleGestureAction = useCallback((gesture: GestureType) => {
