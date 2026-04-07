@@ -54,8 +54,8 @@ const Index = () => {
   const handleGestureAction = useCallback((gesture: GestureType) => {
     const ff = featureFlagsRef.current;
 
-    // Skip all feedback if none are enabled
-    if (!ff.soundEnabled && !ff.hapticEnabled && !ff.voiceEnabled && !ff.gestureNavigation) return;
+    // If gesture navigation is off, skip everything
+    if (!ff.gestureNavigation) return;
 
     const mapping = mappings.find((m) => m.gesture === gesture);
     const label = mapping?.label || gesture;
@@ -65,11 +65,9 @@ const Index = () => {
       voiceEnabled: ff.voiceEnabled,
     });
 
-    if (ff.gestureNavigation) {
-      const action = getActionRef.current(gesture);
-      if (action !== "none") {
-        executeAction(action);
-      }
+    const action = getActionRef.current(gesture);
+    if (action !== "none") {
+      executeAction(action);
     }
   }, [mappings, executeAction]);
 
