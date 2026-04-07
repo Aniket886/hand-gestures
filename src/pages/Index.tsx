@@ -17,12 +17,9 @@ import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings, Presentation } from "lucide-react";
 
-const TOTAL_SLIDES = 4;
-
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
     airWriting: true,
     gestureNavigation: true,
