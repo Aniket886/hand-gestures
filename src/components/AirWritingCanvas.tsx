@@ -33,10 +33,12 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
   const strokesRef = useRef<DrawingStroke[]>([]);
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
   const wasWritingRef = useRef(false);
+  const smoothedRef = useRef<{ x: number; y: number } | null>(null);
   const [color, setColor] = useState(COLORS[0]);
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [showPalette, setShowPalette] = useState(false);
   const [strokeCount, setStrokeCount] = useState(0);
+  const SMOOTHING = 0.35; // lower = smoother but laggier
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -63,9 +65,23 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
 
       const pts = stroke.points;
       ctx.moveTo(pts[0].x * canvas.width, pts[0].y * canvas.height);
-      for (let i = 1; i < pts.length; i++) {
-        ctx.lineTo(pts[i].x * canvas.width, pts[i].y * canvas.height);
+
+      if (pts.length === 2) {
+        ctx.lineTo(pts[1].x * canvas.width, pts[1].y * canvas.height);
+      } else {
+        // Use quadratic bezier curves through midpoints for smooth lines
+        for (let i = 1; i < pts.length - 1; i++) {
+          const cpX = pts[i].x * canvas.width;
+          const cpY = pts[i].y * canvas.height;
+          const nextX = ((pts[i].x + pts[i + 1].x) / 2) * canvas.width;
+          const nextY = ((pts[i].y + pts[i + 1].y) / 2) * canvas.height;
+          ctx.quadraticCurveTo(cpX, cpY, nextX, nextY);
+        }
+        // Draw to the last point
+        const last = pts[pts.length - 1];
+        ctx.lineTo(last.x * canvas.width, last.y * canvas.height);
       }
+
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
@@ -90,22 +106,35 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
 
     if (isWriting && writingTip) {
       // Mirror x to match the flipped video feed
-      const mirroredX = 1 - writingTip.x;
+      const rawX = 1 - writingTip.x;
+      const rawY = writingTip.y;
+
+      // Apply exponential smoothing
+      let sx: number, sy: number;
+      if (smoothedRef.current && wasWritingRef.current) {
+        sx = smoothedRef.current.x + SMOOTHING * (rawX - smoothedRef.current.x);
+        sy = smoothedRef.current.y + SMOOTHING * (rawY - smoothedRef.current.y);
+      } else {
+        sx = rawX;
+        sy = rawY;
+      }
+      smoothedRef.current = { x: sx, y: sy };
+
       if (!wasWritingRef.current) {
         // Start new stroke
         currentStrokeRef.current = {
-          points: [{ x: mirroredX, y: writingTip.y }],
+          points: [{ x: sx, y: sy }],
           color,
           width: strokeWidth,
         };
       } else if (currentStrokeRef.current) {
-        // Continue stroke — only add point if distance is meaningful
+        // Continue stroke — add point at small intervals for smooth curves
         const pts = currentStrokeRef.current.points;
         const last = pts[pts.length - 1];
-        const dx = mirroredX - last.x;
-        const dy = writingTip.y - last.y;
-        if (Math.sqrt(dx * dx + dy * dy) > 0.003) {
-          currentStrokeRef.current.points.push({ x: mirroredX, y: writingTip.y });
+        const dx = sx - last.x;
+        const dy = sy - last.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 0.002) {
+          currentStrokeRef.current.points.push({ x: sx, y: sy });
         }
       }
       wasWritingRef.current = true;
@@ -117,6 +146,7 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
       }
       currentStrokeRef.current = null;
       wasWritingRef.current = false;
+      smoothedRef.current = null;
     }
 
     redraw();
