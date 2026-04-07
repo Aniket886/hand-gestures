@@ -15,7 +15,7 @@ import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
-import { Camera, CameraOff, Hand, Settings } from "lucide-react";
+import { Camera, CameraOff, Hand, Settings, Presentation } from "lucide-react";
 
 const TOTAL_SLIDES = 4;
 
