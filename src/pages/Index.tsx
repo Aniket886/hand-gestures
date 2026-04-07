@@ -5,10 +5,10 @@ import { useGestureMappings, type PresentationAction } from "@/hooks/useGestureM
 import GestureHUD from "@/components/GestureHUD";
 import DemoPresentation from "@/components/DemoPresentation";
 import GestureLegend from "@/components/GestureLegend";
-import FeedbackControls from "@/components/FeedbackControls";
+import FeatureToggles, { type FeatureFlags } from "@/components/FeatureToggles";
 import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
-import { triggerGestureFeedback, resumeAudioContext, type FeedbackSettings } from "@/lib/feedback";
+import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings } from "lucide-react";
 
