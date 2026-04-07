@@ -179,10 +179,10 @@ const Index = () => {
 
       {/* Main content */}
       <main className="container py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Webcam feed */}
           <div className="lg:col-span-1">
-            <div className="relative bg-card border border-border rounded-xl overflow-hidden aspect-[16/10]">
+            <div className="relative bg-card border border-border rounded-xl overflow-hidden aspect-video">
               <video
                 ref={videoRef}
                 className="absolute inset-0 w-full h-full object-cover transform -scale-x-100"
