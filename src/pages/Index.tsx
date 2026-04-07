@@ -79,10 +79,14 @@ const Index = () => {
     }
   }, [mappings, executeAction]);
 
+  const handOverlayRef = useRef(true);
+  handOverlayRef.current = featureFlags.handOverlay;
+
   const { isActive, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
-    handleGestureAction
+    handleGestureAction,
+    handOverlayRef
   );
 
   const handleStart = useCallback(() => {
