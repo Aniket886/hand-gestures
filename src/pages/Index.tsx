@@ -238,17 +238,15 @@ const Index = () => {
             )}
           </div>
 
-          {/* Presentation area with air-writing overlay */}
+          {/* Air-writing overlay area */}
           <div className="lg:col-span-2">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="relative h-full min-h-[400px] lg:min-h-[500px]"
+              className="relative h-full min-h-[400px] lg:min-h-[500px] bg-card rounded-xl border border-border overflow-hidden"
             >
-              <DemoPresentation currentSlide={currentSlide} totalSlides={TOTAL_SLIDES} />
-
-              {/* Air-writing canvas overlaid on presentation */}
+              {/* Air-writing canvas */}
               {isActive && featureFlags.airWriting && (
                 <div className="absolute inset-0 z-30">
                   <AirWritingCanvas
@@ -258,36 +256,24 @@ const Index = () => {
                   />
                 </div>
               )}
+
+              {!isActive && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="font-mono text-xs text-muted-foreground">
+                    Start camera to begin air-writing
+                  </p>
+                </div>
+              )}
             </motion.div>
 
             {/* Tip */}
             {isActive && (
               <div className="mt-2 text-center">
                 <p className="font-mono text-[10px] text-muted-foreground">
-                  ✏️ Point with index finger only to draw on the slide • Use other gestures to navigate
+                  ✏️ Point with index finger only to draw • Use other gestures to navigate
                 </p>
               </div>
             )}
-
-            <div className="flex items-center justify-center gap-4 mt-3">
-              <button
-                onClick={() => setCurrentSlide((s) => Math.max(s - 1, 0))}
-                disabled={currentSlide === 0}
-                className="px-4 py-2 rounded-lg font-mono text-xs bg-secondary border border-border text-secondary-foreground hover:bg-secondary/80 disabled:opacity-30 transition-all"
-              >
-                ← Previous
-              </button>
-              <span className="font-mono text-xs text-muted-foreground">
-                {currentSlide + 1} / {TOTAL_SLIDES}
-              </span>
-              <button
-                onClick={() => setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1))}
-                disabled={currentSlide === TOTAL_SLIDES - 1}
-                className="px-4 py-2 rounded-lg font-mono text-xs bg-secondary border border-border text-secondary-foreground hover:bg-secondary/80 disabled:opacity-30 transition-all"
-              >
-                Next →
-              </button>
-            </div>
           </div>
         </div>
       </main>
