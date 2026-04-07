@@ -72,8 +72,9 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
 
     // Draw cursor if writing
     if (writingTip && isWriting) {
+      const cursorX = (1 - writingTip.x) * canvas.width;
       ctx.beginPath();
-      ctx.arc(writingTip.x * canvas.width, writingTip.y * canvas.height, strokeWidth + 4, 0, 2 * Math.PI);
+      ctx.arc(cursorX, writingTip.y * canvas.height, strokeWidth + 4, 0, 2 * Math.PI);
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
       ctx.shadowColor = color;
