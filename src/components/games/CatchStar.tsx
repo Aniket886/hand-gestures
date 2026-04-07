@@ -15,8 +15,8 @@ export default function CatchStar({ palmPos, isActive, onScoreChange }: CatchSta
   const spawnTime = useRef(Date.now());
 
   const spawnStar = useCallback(() => {
-    const x = 10 + Math.random() * 80;
-    const y = 10 + Math.random() * 70;
+    const x = 15 + Math.random() * 70;
+    const y = 15 + Math.random() * 60;
     setStar({ x, y });
     setCaught(false);
     spawnTime.current = Date.now();
