@@ -1,31 +1,25 @@
 
 
-# Finger String Feature
+# Fix Finger Strings: Only Connect Extended Fingers
 
-Add a toggleable "String Art" mode that draws glowing neon strings connecting all 10 fingertips across both hands, creating a cat's cradle / string figure effect.
+## Problem
+Currently, strings connect all fingertips regardless of whether fingers are open or closed (fist). Strings should only draw between fingers that are visibly extended.
 
-## How it works
-- When enabled and both hands are detected, draw lines connecting all 10 fingertips (landmarks 4, 8, 12, 16, 20 on each hand) to each other — 45 possible connections across both hands, or a subset for a cleaner look (e.g. matching fingers: thumb-to-thumb, index-to-index, etc. plus sequential connections within each hand's tips).
-- When only one hand is detected, connect the 5 fingertips of that hand.
-- Strings rendered with gradient colors, glow effects, and slight elasticity feel.
+## Change
 
-## Technical Changes
+**Edit**: `src/hooks/useHandTracking.ts` — lines 221-249
 
-### 1. Add `fingerString` flag to `FeatureFlags` (`src/components/FeatureToggles.tsx`)
-- Add `fingerString: boolean` to the interface
-- Add toggle entry with a cable/link icon
+Filter fingertips before drawing strings. For each hand, use the existing `isFingerUp` function to check each finger. For the thumb, check landmark 4 vs 3 vs 0. Only include tips of extended fingers in the `allTips` array.
 
-### 2. Pass flag into hand tracking draw logic (`src/hooks/useHandTracking.ts`)
-- Accept a new `drawStringRef` similar to `drawOverlayRef`
-- After drawing hand skeletons, if string mode is on, collect all fingertip positions (indices 4,8,12,16,20) from all detected hands
-- Draw connecting lines between all fingertip pairs with rainbow gradient colors and glow
+Finger-to-landmark mapping for `isFingerUp(landmarks, tip, pip, wrist)`:
+- Thumb: special check (tip 4 vs IP 3, compare x-distance based on handedness)
+- Index: `isFingerUp(lm, 8, 6, 0)`
+- Middle: `isFingerUp(lm, 12, 10, 0)`
+- Ring: `isFingerUp(lm, 16, 14, 0)`
+- Pinky: `isFingerUp(lm, 20, 18, 0)`
 
-### 3. Wire up in `src/pages/Index.tsx`
-- Add `fingerString: true` default to feature flags
-- Create `drawStringRef` and pass to `useHandTracking`
+Only add a fingertip to `allTips` if its finger is extended. If fewer than 2 tips are extended across all hands, skip drawing entirely.
 
 ### Files
-- **Edit**: `src/components/FeatureToggles.tsx` — add toggle
-- **Edit**: `src/hooks/useHandTracking.ts` — draw string connections between fingertips
-- **Edit**: `src/pages/Index.tsx` — wire up new flag
+- **Edit**: `src/hooks/useHandTracking.ts`
 
