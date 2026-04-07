@@ -187,6 +187,8 @@ export function useHandTracking(
           // Classify gesture for this hand
           const gesture = classifyGesture(landmarks as any);
 
+          handsData.push({ landmarks: landmarks as any, gesture, handedness });
+
           // Check if this hand is in writing pose
           if (isWritingPose(landmarks as any)) {
             const indexTip = landmarks[8];
