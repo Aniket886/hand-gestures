@@ -196,7 +196,7 @@ const Index = () => {
               <DemoPresentation currentSlide={currentSlide} totalSlides={TOTAL_SLIDES} />
 
               {/* Air-writing canvas overlaid on presentation */}
-              {isActive && (
+              {isActive && featureFlags.airWriting && (
                 <div className="absolute inset-0 z-30">
                   <AirWritingCanvas
                     writingTip={writingTip}
