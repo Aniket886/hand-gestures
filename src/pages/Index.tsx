@@ -75,6 +75,9 @@ const Index = () => {
   const handOverlayRef = useRef(true);
   handOverlayRef.current = featureFlags.handOverlay;
 
+  const drawStringRef = useRef(true);
+  drawStringRef.current = featureFlags.fingerString;
+
   const { isActive, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
