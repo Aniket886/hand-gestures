@@ -64,11 +64,23 @@ function isWritingPose(landmarks: any[]): boolean {
   return index && !middle && !ring && !pinky;
 }
 
+const FINGERTIPS = [4, 8, 12, 16, 20];
+
+const STRING_COLORS = [
+  "hsl(0, 100%, 65%)",
+  "hsl(45, 100%, 60%)",
+  "hsl(120, 80%, 55%)",
+  "hsl(200, 100%, 60%)",
+  "hsl(280, 80%, 65%)",
+  "hsl(330, 90%, 60%)",
+];
+
 export function useHandTracking(
   videoRef: React.RefObject<HTMLVideoElement>,
   canvasRef: React.RefObject<HTMLCanvasElement>,
   onGestureAction?: (gesture: GestureType) => void,
-  drawOverlayRef?: React.MutableRefObject<boolean>
+  drawOverlayRef?: React.MutableRefObject<boolean>,
+  drawStringRef?: React.MutableRefObject<boolean>
 ) {
   const [state, setState] = useState<HandTrackingState>({
     isLoading: true,
