@@ -1,35 +1,22 @@
 
 
-# Fix Camera Not Opening on Published Website
+# Fix: Camera Shows Feed but Overlay Still Visible
 
 ## Problem
-The published site at `hand-gestures.lovable.app` uses HTTPS. The `navigator.mediaDevices.getUserMedia` API requires a **secure context** (HTTPS or localhost), which the published site has — so that's not the issue.
+The camera feed is visibly playing behind the overlay, but the "Click Start Camera" message stays on top. This means `getUserMedia` succeeded (video is playing) but `isActive` never becomes `true`.
 
-The likely cause is that the **Permissions-Policy header** or a browser security restriction is blocking camera access in the published iframe/context, OR the camera code silently fails without user feedback.
+The root cause: the MediaPipe `Hands` initialization (lines 133-305) is not wrapped in a try-catch. If `new Hands()`, `hands.setOptions()`, or `hands.onResults()` throws during WASM loading, execution never reaches line 321 where `isActive` is set to `true`. The video keeps playing but the app thinks the camera isn't started.
 
-However, the most common root cause for "works in preview but not published" with MediaPipe is:
+## Fix
 
-1. **Mixed content**: The MediaPipe CDN loads over HTTPS, so that's fine.
-2. **Silent failure with no error feedback**: The `start` function catches errors but only logs to console — the user sees nothing.
-3. **Refs not ready**: `videoRef.current` or `canvasRef.current` might be null at click time, causing the early `return` on line 105 with no feedback.
+**Edit**: `src/hooks/useHandTracking.ts`
 
-## Plan
+Wrap the entire MediaPipe initialization block (from `new Hands(...)` through setting up the frame loop and `setState({ isActive: true })`) in a try-catch. If MediaPipe fails to initialize, surface the error to the user and stop the video stream.
 
-### 1. Add visible error handling to camera start (`src/hooks/useHandTracking.ts`)
-- Add an `error` field to `HandTrackingState`
-- When `videoRef`/`canvasRef` are null, set an error message instead of silently returning
-- When `getUserMedia` fails, set a user-visible error message
-- When MediaPipe `Hands` fails to initialize, catch and surface that error too
+Move `setState({ isActive: true })` to right after the video starts playing (after line 121), so the overlay hides as soon as the camera feed is live — independent of whether MediaPipe finishes loading. MediaPipe results will start flowing once WASM loads, but the user sees the camera immediately.
 
-### 2. Show error state in UI (`src/pages/Index.tsx`)
-- Display the error message from the hand tracking state in the camera placeholder area
-- Include guidance like "Please allow camera access" or "Camera not available"
-
-### 3. Add `navigator.mediaDevices` availability check
-- Before calling `getUserMedia`, check if `navigator.mediaDevices` exists (it's undefined in insecure contexts)
-- If unavailable, show "Camera requires HTTPS. Please use the published URL or localhost."
-
-### Files
-- **Edit**: `src/hooks/useHandTracking.ts` — add error state, guard checks, visible error messages
-- **Edit**: `src/pages/Index.tsx` — display error in camera area
+### Specific changes:
+1. Set `isActive: true` immediately after `videoRef.current.play()` succeeds (line 121)
+2. Wrap MediaPipe init (lines 133-320) in try-catch, setting error state on failure
+3. On MediaPipe init failure, also stop the video stream so state is consistent
 
