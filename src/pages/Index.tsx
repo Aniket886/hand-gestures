@@ -182,7 +182,7 @@ const Index = () => {
               <GestureLegend activeGesture={gesture?.gesture ?? null} mappings={mappings} />
             </div>
 
-            <FeedbackControls settings={feedbackSettings} onChange={setFeedbackSettings} />
+            <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} />
           </div>
 
           {/* Presentation area with air-writing overlay */}
