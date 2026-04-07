@@ -101,8 +101,20 @@ export function useHandTracking(
   const gestureActionRef = useRef(onGestureAction);
   gestureActionRef.current = onGestureAction;
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
+
+    // Request camera permission explicitly first
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      // Assign stream to video element so MediaPipe Camera can use it
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+    } catch (err) {
+      console.error("Camera access denied or unavailable:", err);
+      setState((s) => ({ ...s, isLoading: false, isActive: false }));
+      return;
+    }
 
     const hands = new Hands({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
@@ -151,7 +163,6 @@ export function useHandTracking(
           const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
 
           if (shouldDraw) {
-            // Draw connections
             ctx.strokeStyle = colors.line;
             ctx.lineWidth = 2;
             ctx.shadowColor = colors.line;
@@ -166,7 +177,6 @@ export function useHandTracking(
               ctx.stroke();
             }
 
-            // Draw landmarks
             for (let i = 0; i < landmarks.length; i++) {
               const lm = landmarks[i];
               const x = lm.x * canvas.width;
@@ -184,18 +194,15 @@ export function useHandTracking(
             ctx.shadowBlur = 0;
           }
 
-          // Classify gesture for this hand
           const gesture = classifyGesture(landmarks as any);
 
           handsData.push({ landmarks: landmarks as any, gesture, handedness });
 
-          // Check if this hand is in writing pose
           if (isWritingPose(landmarks as any)) {
             const indexTip = landmarks[8];
             writingTip = { x: indexTip.x, y: indexTip.y };
             isWriting = true;
 
-            // Draw writing indicator ring around fingertip
             ctx.beginPath();
             ctx.arc(indexTip.x * canvas.width, indexTip.y * canvas.height, 12, 0, 2 * Math.PI);
             ctx.strokeStyle = "hsl(0, 100%, 60%)";
@@ -206,14 +213,12 @@ export function useHandTracking(
             ctx.shadowBlur = 0;
           }
 
-
-          // Use first hand's gesture as primary (or the one with highest confidence)
           if (!primaryGesture || gesture.confidence > primaryGesture.confidence) {
             primaryGesture = gesture;
           }
         }
 
-        // Draw finger strings connecting all fingertips
+        // Draw finger strings
         const shouldDrawStrings = drawStringRef ? drawStringRef.current : false;
         if (shouldDrawStrings) {
           const allTips: { x: number; y: number }[] = [];
@@ -243,7 +248,6 @@ export function useHandTracking(
           ctx.shadowBlur = 0;
         }
 
-        // Swipe detection on primary hand
         const swipe = detectSwipe(handsData[0].landmarks);
         const finalGesture = swipe
           ? {
@@ -266,7 +270,6 @@ export function useHandTracking(
           isWriting,
         }));
 
-        // Trigger action with cooldown
         if (finalGesture && finalGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
           lastActionTime.current = now;
           gestureActionRef.current?.(finalGesture.gesture);
@@ -285,18 +288,18 @@ export function useHandTracking(
 
     handsRef.current = hands;
 
-    const camera = new Camera(videoRef.current, {
-      onFrame: async () => {
-        if (videoRef.current) {
-          await hands.send({ image: videoRef.current });
-        }
-      },
-      width: 640,
-      height: 480,
-    });
+    // Use a frame loop instead of MediaPipe Camera to avoid double getUserMedia
+    let animId: number;
+    const processFrame = async () => {
+      if (videoRef.current && videoRef.current.readyState >= 2) {
+        await hands.send({ image: videoRef.current });
+      }
+      animId = requestAnimationFrame(processFrame);
+    };
+    animId = requestAnimationFrame(processFrame);
 
-    camera.start();
-    cameraRef.current = camera;
+    // Store cleanup for the frame loop
+    cameraRef.current = { stop: () => cancelAnimationFrame(animId) } as any;
     setState((s) => ({ ...s, isLoading: false, isActive: true }));
   }, [videoRef, canvasRef]);
 
@@ -305,8 +308,14 @@ export function useHandTracking(
     cameraRef.current = null;
     try { handsRef.current?.close(); } catch (_) {}
     handsRef.current = null;
+    // Stop video stream tracks
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((t) => t.stop());
+      videoRef.current.srcObject = null;
+    }
     resetSwipeHistory();
-  }, []);
+  }, [videoRef]);
 
   const stop = useCallback(() => {
     cleanup();
