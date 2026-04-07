@@ -26,6 +26,7 @@ const Index = () => {
     handOverlay: true,
     faceEmotion: true,
     fingerString: true,
+    measuring: true,
     soundEnabled: true,
     hapticEnabled: true,
     voiceEnabled: true,
