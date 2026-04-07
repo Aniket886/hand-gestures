@@ -24,7 +24,7 @@ const PlayCanvas = () => {
   const [gameMode, setGameMode] = useState<GameMode>("bubble");
   const [score, setScore] = useState(0);
 
-  const { isActive, gesture, fps, hands, writingTip, start, stop } = useHandTracking(
+  const { isActive, trackingReady, error: trackingError, gesture, fps, hands, writingTip, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     undefined,
