@@ -10,7 +10,8 @@ interface GestureMatchProps {
 
 const PLAYABLE_GESTURES: GestureType[] = [
   "open_palm", "fist", "pointing", "thumbs_up", "thumbs_down",
-  "peace", "rock", "love_you", "ok_sign", "pinch", "gun", "vulcan",
+  "peace", "rock", "love_you", "call_me", "ok_sign", "pinch",
+  "three", "four", "pinky_up", "gun", "vulcan",
 ];
 
 export default function GestureMatch({ currentGesture, isActive, onScoreChange }: GestureMatchProps) {
