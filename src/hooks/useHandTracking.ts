@@ -122,7 +122,8 @@ export function useHandTracking(
   canvasRef: React.RefObject<HTMLCanvasElement>,
   onGestureAction?: (gesture: GestureType) => void,
   drawOverlayRef?: React.MutableRefObject<boolean>,
-  drawStringRef?: React.MutableRefObject<boolean>
+  drawStringRef?: React.MutableRefObject<boolean>,
+  drawMeasureRef?: React.MutableRefObject<boolean>
 ) {
   const [state, setState] = useState<HandTrackingState>({
     isLoading: false,
