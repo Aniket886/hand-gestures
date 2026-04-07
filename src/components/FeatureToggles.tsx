@@ -1,9 +1,10 @@
-import { PenTool, Navigation, Volume2, VolumeX, Mic, MicOff, Smartphone, Eye, EyeOff } from "lucide-react";
+import { PenTool, Navigation, Volume2, VolumeX, Mic, MicOff, Smartphone, Eye, EyeOff, Smile } from "lucide-react";
 
 export interface FeatureFlags {
   airWriting: boolean;
   gestureNavigation: boolean;
   handOverlay: boolean;
+  faceEmotion: boolean;
   soundEnabled: boolean;
   hapticEnabled: boolean;
   voiceEnabled: boolean;
