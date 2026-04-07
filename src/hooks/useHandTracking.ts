@@ -10,6 +10,12 @@ export interface HandData {
   handedness: string;
 }
 
+export interface StringMeasurement {
+  from: number;
+  to: number;
+  cm: number;
+}
+
 export interface HandTrackingState {
   isLoading: boolean;
   isActive: boolean;
@@ -21,6 +27,7 @@ export interface HandTrackingState {
   fps: number;
   writingTip: { x: number; y: number } | null;
   isWriting: boolean;
+  stringMeasurements: StringMeasurement[];
 }
 
 const CONNECTIONS = [
