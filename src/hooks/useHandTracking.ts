@@ -308,8 +308,14 @@ export function useHandTracking(
     cameraRef.current = null;
     try { handsRef.current?.close(); } catch (_) {}
     handsRef.current = null;
+    // Stop video stream tracks
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((t) => t.stop());
+      videoRef.current.srcObject = null;
+    }
     resetSwipeHistory();
-  }, []);
+  }, [videoRef]);
 
   const stop = useCallback(() => {
     cleanup();
