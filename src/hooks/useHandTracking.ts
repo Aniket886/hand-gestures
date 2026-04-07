@@ -130,6 +130,7 @@ export function useHandTracking(
     fps: 0,
     writingTip: null,
     isWriting: false,
+    stringMeasurements: [],
   });
 
   const cameraRef = useRef<{ stop: () => void } | null>(null);
