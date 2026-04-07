@@ -152,9 +152,9 @@ export default function BubblePop({ fingerPos, isActive, onScoreChange }: Bubble
                 width: b.size,
                 height: b.size,
                 transform: "translate(-50%, -50%)",
-                background: `radial-gradient(circle at 35% 35%, ${b.color}88, ${b.color})`,
-                boxShadow: `0 0 20px ${b.color}44`,
-                border: `1px solid ${b.color}66`,
+                background: `radial-gradient(circle at 35% 35%, hsla(${b.color}, 0.5), hsl(${b.color}))`,
+                boxShadow: `0 0 20px hsla(${b.color}, 0.25)`,
+                border: `1px solid hsla(${b.color}, 0.4)`,
               }}
             />
           )
