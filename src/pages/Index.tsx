@@ -181,92 +181,70 @@ const Index = () => {
       </header>
 
       {/* Main content */}
-      <main className="container py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Webcam feed */}
-          <div className="lg:col-span-1">
-            <div className="relative bg-card border border-border rounded-xl overflow-hidden aspect-video">
-              <video
-                ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover transform -scale-x-100"
-                playsInline
-                muted
+      <main className="container py-4">
+        {/* Camera — full width, large */}
+        <div className="relative bg-card border border-border rounded-xl overflow-hidden w-full" style={{ aspectRatio: "16/9" }}>
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover transform -scale-x-100"
+            playsInline
+            muted
+          />
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full transform -scale-x-100"
+          />
+
+          {/* Air-writing overlay on camera */}
+          {isActive && featureFlags.airWriting && (
+            <div className="absolute inset-0 z-30">
+              <AirWritingCanvas
+                writingTip={writingTip}
+                isWriting={isWriting}
+                isActive={isActive}
               />
-              <canvas
-                ref={canvasRef}
-                className="absolute inset-0 w-full h-full transform -scale-x-100"
-              />
-
-              {!isActive && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90">
-                  <Camera className="w-12 h-12 text-muted-foreground mb-3" />
-                  <p className="font-mono text-xs text-muted-foreground text-center px-4">
-                    Click "Start Camera" to begin tracking
-                  </p>
-                </div>
-              )}
-
-              {isActive && (
-                <div className="absolute top-2 left-2 font-mono text-[10px] text-muted-foreground bg-card/70 backdrop-blur-sm px-2 py-1 rounded">
-                  {fps} FPS • {hands.length} hand{hands.length !== 1 ? "s" : ""}
-                </div>
-              )}
-
-              {isActive && featureFlags.faceEmotion && (
-                <EmotionHUD
-                  emotion={emotion}
-                  isLoading={emotionLoading}
-                  isActive={isActive}
-                />
-              )}
             </div>
+          )}
 
-            <div className="mt-4">
-              <GestureLegend activeGesture={gesture?.gesture ?? null} mappings={mappings} />
+          {!isActive && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90">
+              <Camera className="w-16 h-16 text-muted-foreground mb-3" />
+              <p className="font-mono text-sm text-muted-foreground text-center px-4">
+                Click "Start Camera" to begin tracking
+              </p>
             </div>
+          )}
 
+          {isActive && (
+            <div className="absolute top-3 left-3 font-mono text-xs text-muted-foreground bg-card/70 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+              {fps} FPS • {hands.length} hand{hands.length !== 1 ? "s" : ""}
+            </div>
+          )}
+
+          {isActive && featureFlags.faceEmotion && (
+            <EmotionHUD
+              emotion={emotion}
+              isLoading={emotionLoading}
+              isActive={isActive}
+            />
+          )}
+
+          {isActive && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 font-mono text-[10px] text-muted-foreground bg-card/70 backdrop-blur-sm px-3 py-1 rounded-lg">
+              ✏️ Point with index finger to draw • Use gestures to navigate
+            </div>
+          )}
+        </div>
+
+        {/* Controls row below camera */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+          <div className="lg:col-span-2">
+            <GestureLegend activeGesture={gesture?.gesture ?? null} mappings={mappings} />
+          </div>
+          <div className="space-y-4">
             <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} />
-
             {featureFlags.faceEmotion && (
               <EngagementPanel data={engagement} isActive={isActive} />
-            )}
-          </div>
-
-          {/* Air-writing overlay area */}
-          <div className="lg:col-span-2">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="relative h-full min-h-[400px] lg:min-h-[500px] bg-card rounded-xl border border-border overflow-hidden"
-            >
-              {/* Air-writing canvas */}
-              {isActive && featureFlags.airWriting && (
-                <div className="absolute inset-0 z-30">
-                  <AirWritingCanvas
-                    writingTip={writingTip}
-                    isWriting={isWriting}
-                    isActive={isActive}
-                  />
-                </div>
-              )}
-
-              {!isActive && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <p className="font-mono text-xs text-muted-foreground">
-                    Start camera to begin air-writing
-                  </p>
-                </div>
-              )}
-            </motion.div>
-
-            {/* Tip */}
-            {isActive && (
-              <div className="mt-2 text-center">
-                <p className="font-mono text-[10px] text-muted-foreground">
-                  ✏️ Point with index finger only to draw • Use other gestures to navigate
-                </p>
-              </div>
             )}
           </div>
         </div>
