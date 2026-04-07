@@ -106,7 +106,6 @@ async function createAndInitHands(
 ): Promise<Hands> {
   const HandsConstructor = await loadHandsRuntime();
   const hands = new HandsConstructor({ locateFile });
-  const hands = new HandsConstructor({ locateFile });
 
   const options: any = {
     maxNumHands: 2,
