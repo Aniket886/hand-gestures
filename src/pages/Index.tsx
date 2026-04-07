@@ -7,7 +7,7 @@ import { useEngagementScore } from "@/hooks/useEngagementScore";
 import { useGestureMappings, type PresentationAction } from "@/hooks/useGestureMappings";
 import GestureHUD from "@/components/GestureHUD";
 import EmotionHUD from "@/components/EmotionHUD";
-import DemoPresentation from "@/components/DemoPresentation";
+
 import GestureLegend from "@/components/GestureLegend";
 import EngagementPanel from "@/components/EngagementPanel";
 import FeatureToggles, { type FeatureFlags } from "@/components/FeatureToggles";
@@ -17,12 +17,9 @@ import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings, Presentation } from "lucide-react";
 
-const TOTAL_SLIDES = 4;
-
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
     airWriting: true,
     gestureNavigation: true,
@@ -50,21 +47,8 @@ const Index = () => {
   const getActionRef = useRef(getActionForGesture);
   getActionRef.current = getActionForGesture;
 
-  const executeAction = useCallback((action: PresentationAction) => {
-    switch (action) {
-      case "next_slide":
-        setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1));
-        break;
-      case "prev_slide":
-        setCurrentSlide((s) => Math.max(s - 1, 0));
-        break;
-      case "first_slide":
-        setCurrentSlide(0);
-        break;
-      case "last_slide":
-        setCurrentSlide(TOTAL_SLIDES - 1);
-        break;
-    }
+  const executeAction = useCallback((_action: PresentationAction) => {
+    // Presentation actions are handled on the /present page
   }, []);
 
   const handleGestureAction = useCallback((gesture: GestureType) => {
@@ -238,17 +222,15 @@ const Index = () => {
             )}
           </div>
 
-          {/* Presentation area with air-writing overlay */}
+          {/* Air-writing overlay area */}
           <div className="lg:col-span-2">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="relative h-full min-h-[400px] lg:min-h-[500px]"
+              className="relative h-full min-h-[400px] lg:min-h-[500px] bg-card rounded-xl border border-border overflow-hidden"
             >
-              <DemoPresentation currentSlide={currentSlide} totalSlides={TOTAL_SLIDES} />
-
-              {/* Air-writing canvas overlaid on presentation */}
+              {/* Air-writing canvas */}
               {isActive && featureFlags.airWriting && (
                 <div className="absolute inset-0 z-30">
                   <AirWritingCanvas
@@ -258,36 +240,24 @@ const Index = () => {
                   />
                 </div>
               )}
+
+              {!isActive && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <p className="font-mono text-xs text-muted-foreground">
+                    Start camera to begin air-writing
+                  </p>
+                </div>
+              )}
             </motion.div>
 
             {/* Tip */}
             {isActive && (
               <div className="mt-2 text-center">
                 <p className="font-mono text-[10px] text-muted-foreground">
-                  ✏️ Point with index finger only to draw on the slide • Use other gestures to navigate
+                  ✏️ Point with index finger only to draw • Use other gestures to navigate
                 </p>
               </div>
             )}
-
-            <div className="flex items-center justify-center gap-4 mt-3">
-              <button
-                onClick={() => setCurrentSlide((s) => Math.max(s - 1, 0))}
-                disabled={currentSlide === 0}
-                className="px-4 py-2 rounded-lg font-mono text-xs bg-secondary border border-border text-secondary-foreground hover:bg-secondary/80 disabled:opacity-30 transition-all"
-              >
-                ← Previous
-              </button>
-              <span className="font-mono text-xs text-muted-foreground">
-                {currentSlide + 1} / {TOTAL_SLIDES}
-              </span>
-              <button
-                onClick={() => setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1))}
-                disabled={currentSlide === TOTAL_SLIDES - 1}
-                className="px-4 py-2 rounded-lg font-mono text-xs bg-secondary border border-border text-secondary-foreground hover:bg-secondary/80 disabled:opacity-30 transition-all"
-              >
-                Next →
-              </button>
-            </div>
           </div>
         </div>
       </main>
