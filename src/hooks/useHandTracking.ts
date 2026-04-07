@@ -310,9 +310,21 @@ export function useHandTracking(
 
       // Use a frame loop instead of MediaPipe Camera to avoid double getUserMedia
       let animId: number;
+      let consecutiveErrors = 0;
       const processFrame = async () => {
-        if (videoRef.current && videoRef.current.readyState >= 2) {
-          await hands.send({ image: videoRef.current });
+        try {
+          if (videoRef.current && videoRef.current.readyState >= 2) {
+            await hands.send({ image: videoRef.current });
+            consecutiveErrors = 0;
+          }
+        } catch (err) {
+          consecutiveErrors++;
+          if (consecutiveErrors === 1) {
+            console.warn("Hand tracking frame error:", err);
+          }
+          if (consecutiveErrors === 10) {
+            setState((s) => ({ ...s, error: "Hand tracking is having trouble. Gestures may not work reliably." }));
+          }
         }
         animId = requestAnimationFrame(processFrame);
       };
