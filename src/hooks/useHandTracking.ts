@@ -222,12 +222,16 @@ export function useHandTracking(
         const shouldDrawStrings = drawStringRef ? drawStringRef.current : false;
         if (shouldDrawStrings) {
           const allTips: { x: number; y: number }[] = [];
+          const fingerChecks: [number, number][] = [[4, 3], [8, 6], [12, 10], [16, 14], [20, 18]];
           for (const hand of handsData) {
-            for (const tipIdx of FINGERTIPS) {
-              const lm = hand.landmarks[tipIdx];
-              allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height });
+            for (const [tip, pip] of fingerChecks) {
+              if (isFingerUp(hand.landmarks, tip, pip, 0)) {
+                const lm = hand.landmarks[tip];
+                allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height });
+              }
             }
           }
+          if (allTips.length < 2) { ctx.shadowBlur = 0; }
 
           ctx.lineWidth = 2;
           ctx.shadowBlur = 12;
