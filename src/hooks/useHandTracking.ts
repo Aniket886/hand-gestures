@@ -67,7 +67,8 @@ function isWritingPose(landmarks: any[]): boolean {
 export function useHandTracking(
   videoRef: React.RefObject<HTMLVideoElement>,
   canvasRef: React.RefObject<HTMLCanvasElement>,
-  onGestureAction?: (gesture: GestureType) => void
+  onGestureAction?: (gesture: GestureType) => void,
+  drawOverlayRef?: React.MutableRefObject<boolean>
 ) {
   const [state, setState] = useState<HandTrackingState>({
     isLoading: true,
