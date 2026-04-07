@@ -28,6 +28,7 @@ const Index = () => {
   });
   const featureFlagsRef = useRef(featureFlags);
   featureFlagsRef.current = featureFlags;
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const {
     mappings,
