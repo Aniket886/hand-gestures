@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Hands, Results } from "@mediapipe/hands";
-import { Camera } from "@mediapipe/camera_utils";
 import { classifyGesture, detectSwipe, resetSwipeHistory, type GestureResult, type GestureType } from "@/lib/gestures";
+
+const MEDIAPIPE_VERSION = "0.4.1675469240";
 
 export interface HandData {
   landmarks: any[];
   gesture: GestureResult;
-  handedness: string; // "Left" | "Right"
+  handedness: string;
 }
 
 export interface HandTrackingState {
   isLoading: boolean;
   isActive: boolean;
+  trackingReady: boolean;
   error: string | null;
   gesture: GestureResult | null;
   landmarks: any[] | null;
@@ -55,7 +57,6 @@ function isFingerUp(landmarks: any[], tip: number, pip: number, wrist: number): 
   return tipD > pipD * 1.1;
 }
 
-// Detect "writing pose": index finger extended, other fingers curled
 function isWritingPose(landmarks: any[]): boolean {
   const index = isFingerUp(landmarks, 8, 6, 0);
   const middle = isFingerUp(landmarks, 12, 10, 0);
@@ -63,8 +64,6 @@ function isWritingPose(landmarks: any[]): boolean {
   const pinky = isFingerUp(landmarks, 20, 18, 0);
   return index && !middle && !ring && !pinky;
 }
-
-const FINGERTIPS = [4, 8, 12, 16, 20];
 
 const STRING_COLORS = [
   "hsl(0, 100%, 65%)",
@@ -75,6 +74,37 @@ const STRING_COLORS = [
   "hsl(330, 90%, 60%)",
 ];
 
+async function createAndInitHands(
+  locateFile: (file: string) => string,
+  onResults: (results: Results) => void,
+  useCpu: boolean,
+  timeoutMs: number
+): Promise<Hands> {
+  const hands = new Hands({ locateFile });
+
+  const options: any = {
+    maxNumHands: 2,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.5,
+  };
+  if (useCpu) {
+    options.useCpuInference = true;
+  }
+  hands.setOptions(options);
+  hands.onResults(onResults);
+
+  // Initialize with timeout
+  await Promise.race([
+    hands.initialize(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("MediaPipe initialization timed out")), timeoutMs)
+    ),
+  ]);
+
+  return hands;
+}
+
 export function useHandTracking(
   videoRef: React.RefObject<HTMLVideoElement>,
   canvasRef: React.RefObject<HTMLCanvasElement>,
@@ -83,8 +113,9 @@ export function useHandTracking(
   drawStringRef?: React.MutableRefObject<boolean>
 ) {
   const [state, setState] = useState<HandTrackingState>({
-    isLoading: true,
+    isLoading: false,
     isActive: false,
+    trackingReady: false,
     error: null,
     gesture: null,
     landmarks: null,
@@ -94,7 +125,7 @@ export function useHandTracking(
     isWriting: false,
   });
 
-  const cameraRef = useRef<Camera | null>(null);
+  const cameraRef = useRef<{ stop: () => void } | null>(null);
   const handsRef = useRef<Hands | null>(null);
   const frameCountRef = useRef(0);
   const lastFpsTime = useRef(Date.now());
@@ -103,7 +134,7 @@ export function useHandTracking(
   gestureActionRef.current = onGestureAction;
 
   const start = useCallback(async () => {
-    setState((s) => ({ ...s, error: null, isLoading: true }));
+    setState((s) => ({ ...s, error: null, isLoading: true, trackingReady: false }));
 
     if (!videoRef.current || !canvasRef.current) {
       setState((s) => ({ ...s, isLoading: false, isActive: false, error: "Camera elements not ready. Please try again." }));
@@ -130,216 +161,220 @@ export function useHandTracking(
       return;
     }
 
-    // Camera feed is live — show it immediately
+    // Camera feed is live
     setState((s) => ({ ...s, isLoading: false, isActive: true }));
 
-    try {
-      const hands = new Hands({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
-      });
+    const locateFile = (file: string) =>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${MEDIAPIPE_VERSION}/${file}`;
 
-      hands.setOptions({
-        maxNumHands: 2,
-        modelComplexity: 1,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.5,
-      });
+    const onResults = (results: Results) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-      hands.onResults((results: Results) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        canvas.width = canvas.clientWidth;
-        canvas.height = canvas.clientHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      frameCountRef.current++;
+      const now = Date.now();
+      if (now - lastFpsTime.current >= 1000) {
+        const fps = frameCountRef.current;
+        frameCountRef.current = 0;
+        lastFpsTime.current = now;
+        setState((s) => ({ ...s, fps }));
+      }
 
-        // FPS
-        frameCountRef.current++;
-        const now = Date.now();
-        if (now - lastFpsTime.current >= 1000) {
-          const fps = frameCountRef.current;
-          frameCountRef.current = 0;
-          lastFpsTime.current = now;
-          setState((s) => ({ ...s, fps }));
-        }
+      const handCount = results.multiHandLandmarks?.length || 0;
 
-        const handCount = results.multiHandLandmarks?.length || 0;
+      if (handCount > 0) {
+        const handsData: HandData[] = [];
+        let primaryGesture: GestureResult | null = null;
+        let writingTip: { x: number; y: number } | null = null;
+        let isWriting = false;
 
-        if (handCount > 0) {
-          const handsData: HandData[] = [];
-          let primaryGesture: GestureResult | null = null;
-          let writingTip: { x: number; y: number } | null = null;
-          let isWriting = false;
+        for (let h = 0; h < handCount; h++) {
+          const landmarks = results.multiHandLandmarks[h];
+          const handedness = results.multiHandedness?.[h]?.label || (h === 0 ? "Right" : "Left");
+          const colors = HAND_COLORS[handedness] || HAND_COLORS.Right;
 
-          for (let h = 0; h < handCount; h++) {
-            const landmarks = results.multiHandLandmarks[h];
-            const handedness = results.multiHandedness?.[h]?.label || (h === 0 ? "Right" : "Left");
-            const colors = HAND_COLORS[handedness] || HAND_COLORS.Right;
+          const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
 
-            const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
+          if (shouldDraw) {
+            ctx.strokeStyle = colors.line;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = colors.line;
+            ctx.shadowBlur = 8;
 
-            if (shouldDraw) {
-              ctx.strokeStyle = colors.line;
-              ctx.lineWidth = 2;
-              ctx.shadowColor = colors.line;
-              ctx.shadowBlur = 8;
-
-              for (const [i, j] of CONNECTIONS) {
-                const a = landmarks[i];
-                const b = landmarks[j];
-                ctx.beginPath();
-                ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
-                ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
-                ctx.stroke();
-              }
-
-              for (let i = 0; i < landmarks.length; i++) {
-                const lm = landmarks[i];
-                const x = lm.x * canvas.width;
-                const y = lm.y * canvas.height;
-                const isTip = [4, 8, 12, 16, 20].includes(i);
-
-                ctx.beginPath();
-                ctx.arc(x, y, isTip ? 6 : 3, 0, 2 * Math.PI);
-                ctx.fillStyle = isTip ? colors.tip : colors.dot;
-                ctx.shadowColor = isTip ? colors.tip : colors.dot;
-                ctx.shadowBlur = isTip ? 15 : 8;
-                ctx.fill();
-              }
-
-              ctx.shadowBlur = 0;
+            for (const [i, j] of CONNECTIONS) {
+              const a = landmarks[i];
+              const b = landmarks[j];
+              ctx.beginPath();
+              ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
+              ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
+              ctx.stroke();
             }
 
-            const gesture = classifyGesture(landmarks as any);
-
-            handsData.push({ landmarks: landmarks as any, gesture, handedness });
-
-            if (isWritingPose(landmarks as any)) {
-              const indexTip = landmarks[8];
-              writingTip = { x: indexTip.x, y: indexTip.y };
-              isWriting = true;
+            for (let i = 0; i < landmarks.length; i++) {
+              const lm = landmarks[i];
+              const x = lm.x * canvas.width;
+              const y = lm.y * canvas.height;
+              const isTip = [4, 8, 12, 16, 20].includes(i);
 
               ctx.beginPath();
-              ctx.arc(indexTip.x * canvas.width, indexTip.y * canvas.height, 12, 0, 2 * Math.PI);
-              ctx.strokeStyle = "hsl(0, 100%, 60%)";
-              ctx.lineWidth = 2;
-              ctx.shadowColor = "hsl(0, 100%, 60%)";
-              ctx.shadowBlur = 15;
-              ctx.stroke();
-              ctx.shadowBlur = 0;
+              ctx.arc(x, y, isTip ? 6 : 3, 0, 2 * Math.PI);
+              ctx.fillStyle = isTip ? colors.tip : colors.dot;
+              ctx.shadowColor = isTip ? colors.tip : colors.dot;
+              ctx.shadowBlur = isTip ? 15 : 8;
+              ctx.fill();
             }
 
-            if (!primaryGesture || gesture.confidence > primaryGesture.confidence) {
-              primaryGesture = gesture;
-            }
+            ctx.shadowBlur = 0;
           }
 
-          // Draw finger strings
-          const shouldDrawStrings = drawStringRef ? drawStringRef.current : false;
-          if (shouldDrawStrings) {
-            const allTips: { x: number; y: number }[] = [];
-            const fingerChecks: [number, number][] = [[4, 3], [8, 6], [12, 10], [16, 14], [20, 18]];
-            for (const hand of handsData) {
-              for (const [tip, pip] of fingerChecks) {
-                if (isFingerUp(hand.landmarks, tip, pip, 0)) {
-                  const lm = hand.landmarks[tip];
-                  allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height });
-                }
-              }
-            }
-            if (allTips.length >= 2) {
-              ctx.lineWidth = 2;
-              ctx.shadowBlur = 12;
+          const gesture = classifyGesture(landmarks as any);
+          handsData.push({ landmarks: landmarks as any, gesture, handedness });
 
-              for (let i = 0; i < allTips.length; i++) {
-                for (let j = i + 1; j < allTips.length; j++) {
-                  const color = STRING_COLORS[(i + j) % STRING_COLORS.length];
-                  ctx.strokeStyle = color;
-                  ctx.shadowColor = color;
-                  ctx.globalAlpha = 0.7;
-                  ctx.beginPath();
-                  ctx.moveTo(allTips[i].x, allTips[i].y);
-                  ctx.lineTo(allTips[j].x, allTips[j].y);
-                  ctx.stroke();
-                }
-              }
-              ctx.globalAlpha = 1;
-              ctx.shadowBlur = 0;
-            }
+          if (isWritingPose(landmarks as any)) {
+            const indexTip = landmarks[8];
+            writingTip = { x: indexTip.x, y: indexTip.y };
+            isWriting = true;
+
+            ctx.beginPath();
+            ctx.arc(indexTip.x * canvas.width, indexTip.y * canvas.height, 12, 0, 2 * Math.PI);
+            ctx.strokeStyle = "hsl(0, 100%, 60%)";
+            ctx.lineWidth = 2;
+            ctx.shadowColor = "hsl(0, 100%, 60%)";
+            ctx.shadowBlur = 15;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
           }
 
-          const swipe = detectSwipe(handsData[0].landmarks);
-          const finalGesture = swipe
-            ? {
-                gesture: swipe,
-                confidence: 0.8,
-                label: swipe === "swipe_left" ? "Swipe Left" : "Swipe Right",
-                action: swipe === "swipe_left" ? "Next Slide →" : "Previous Slide ←",
-                emoji: swipe === "swipe_left" ? "👈" : "👉",
-              }
-            : primaryGesture;
-
-          setState((s) => ({
-            ...s,
-            gesture: finalGesture,
-            landmarks: handsData[0].landmarks,
-            hands: handsData,
-            writingTip: isWriting ? writingTip : null,
-            isWriting,
-          }));
-
-          if (finalGesture && finalGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
-            lastActionTime.current = now;
-            gestureActionRef.current?.(finalGesture.gesture);
-          }
-        } else {
-          setState((s) => ({
-            ...s,
-            gesture: null,
-            landmarks: null,
-            hands: [],
-            writingTip: null,
-            isWriting: false,
-          }));
-        }
-      });
-
-      handsRef.current = hands;
-
-      // Explicitly initialize WASM model before processing frames
-      await hands.initialize();
-      console.log("MediaPipe Hands initialized successfully");
-
-      // Use a frame loop instead of MediaPipe Camera to avoid double getUserMedia
-      let animId: number;
-      let consecutiveErrors = 0;
-      const processFrame = async () => {
-        try {
-          if (videoRef.current && videoRef.current.readyState >= 2) {
-            await hands.send({ image: videoRef.current });
-            consecutiveErrors = 0;
-          }
-        } catch (err) {
-          consecutiveErrors++;
-          if (consecutiveErrors === 1) {
-            console.warn("Hand tracking frame error:", err);
-          }
-          if (consecutiveErrors === 10) {
-            setState((s) => ({ ...s, error: "Hand tracking is having trouble. Gestures may not work reliably." }));
+          if (!primaryGesture || gesture.confidence > primaryGesture.confidence) {
+            primaryGesture = gesture;
           }
         }
-        animId = requestAnimationFrame(processFrame);
-      };
-      animId = requestAnimationFrame(processFrame);
 
-      // Store cleanup for the frame loop
-      cameraRef.current = { stop: () => cancelAnimationFrame(animId) } as any;
-    } catch (err: any) {
-      console.error("MediaPipe initialization failed:", err);
-      setState((s) => ({ ...s, error: `Hand tracking init failed: ${err?.message || "Unknown error"}. Camera feed is still active.` }));
+        // Draw finger strings
+        const shouldDrawStrings = drawStringRef ? drawStringRef.current : false;
+        if (shouldDrawStrings) {
+          const allTips: { x: number; y: number }[] = [];
+          const fingerChecks: [number, number][] = [[4, 3], [8, 6], [12, 10], [16, 14], [20, 18]];
+          for (const hand of handsData) {
+            for (const [tip, pip] of fingerChecks) {
+              if (isFingerUp(hand.landmarks, tip, pip, 0)) {
+                const lm = hand.landmarks[tip];
+                allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height });
+              }
+            }
+          }
+          if (allTips.length >= 2) {
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 12;
+
+            for (let i = 0; i < allTips.length; i++) {
+              for (let j = i + 1; j < allTips.length; j++) {
+                const color = STRING_COLORS[(i + j) % STRING_COLORS.length];
+                ctx.strokeStyle = color;
+                ctx.shadowColor = color;
+                ctx.globalAlpha = 0.7;
+                ctx.beginPath();
+                ctx.moveTo(allTips[i].x, allTips[i].y);
+                ctx.lineTo(allTips[j].x, allTips[j].y);
+                ctx.stroke();
+              }
+            }
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+          }
+        }
+
+        const swipe = detectSwipe(handsData[0].landmarks);
+        const finalGesture = swipe
+          ? {
+              gesture: swipe,
+              confidence: 0.8,
+              label: swipe === "swipe_left" ? "Swipe Left" : "Swipe Right",
+              action: swipe === "swipe_left" ? "Next Slide →" : "Previous Slide ←",
+              emoji: swipe === "swipe_left" ? "👈" : "👉",
+            }
+          : primaryGesture;
+
+        setState((s) => ({
+          ...s,
+          gesture: finalGesture,
+          landmarks: handsData[0].landmarks,
+          hands: handsData,
+          writingTip: isWriting ? writingTip : null,
+          isWriting,
+        }));
+
+        if (finalGesture && finalGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
+          lastActionTime.current = now;
+          gestureActionRef.current?.(finalGesture.gesture);
+        }
+      } else {
+        setState((s) => ({
+          ...s,
+          gesture: null,
+          landmarks: null,
+          hands: [],
+          writingTip: null,
+          isWriting: false,
+        }));
+      }
+    };
+
+    // Try GPU first, fallback to CPU
+    let hands: Hands | null = null;
+    try {
+      console.log("Initializing MediaPipe Hands (GPU mode)...");
+      hands = await createAndInitHands(locateFile, onResults, false, 15000);
+      console.log("MediaPipe Hands initialized successfully (GPU)");
+    } catch (gpuErr) {
+      console.warn("GPU init failed, trying CPU fallback:", gpuErr);
+      setState((s) => ({ ...s, error: "GPU mode unavailable, trying CPU fallback…" }));
+      try {
+        hands = await createAndInitHands(locateFile, onResults, true, 20000);
+        console.log("MediaPipe Hands initialized successfully (CPU fallback)");
+        setState((s) => ({ ...s, error: null }));
+      } catch (cpuErr) {
+        console.error("MediaPipe initialization failed (both GPU and CPU):", cpuErr);
+        setState((s) => ({
+          ...s,
+          error: `Hand tracking failed to initialize. Camera feed is still active. Error: ${(cpuErr as Error)?.message || "Unknown"}`,
+        }));
+        return;
+      }
     }
+
+    handsRef.current = hands;
+    setState((s) => ({ ...s, trackingReady: true }));
+
+    // Frame loop
+    let animId: number;
+    let consecutiveErrors = 0;
+    const processFrame = async () => {
+      try {
+        if (videoRef.current && videoRef.current.readyState >= 2) {
+          await hands!.send({ image: videoRef.current });
+          consecutiveErrors = 0;
+        }
+      } catch (err) {
+        consecutiveErrors++;
+        if (consecutiveErrors === 1) {
+          console.warn("Hand tracking frame error:", err);
+        }
+        if (consecutiveErrors === 10) {
+          setState((s) => ({ ...s, error: "Hand tracking is having trouble. Gestures may not work reliably." }));
+        }
+      }
+      animId = requestAnimationFrame(processFrame);
+    };
+    animId = requestAnimationFrame(processFrame);
+
+    cameraRef.current = { stop: () => cancelAnimationFrame(animId) };
   }, [videoRef, canvasRef]);
 
   const cleanup = useCallback(() => {
@@ -347,7 +382,6 @@ export function useHandTracking(
     cameraRef.current = null;
     try { handsRef.current?.close(); } catch (_) {}
     handsRef.current = null;
-    // Stop video stream tracks
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((t) => t.stop());
@@ -359,7 +393,7 @@ export function useHandTracking(
   const stop = useCallback(() => {
     cleanup();
     setState({
-      isLoading: false, isActive: false, error: null, gesture: null, landmarks: null,
+      isLoading: false, isActive: false, trackingReady: false, error: null, gesture: null, landmarks: null,
       hands: [], fps: 0, writingTip: null, isWriting: false,
     });
   }, [cleanup]);

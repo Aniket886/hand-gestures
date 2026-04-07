@@ -78,9 +78,19 @@ const PlayCanvas = () => {
             </div>
 
             {/* FPS */}
-            {isActive && (
+            {isActive && trackingReady && (
               <div className="font-mono text-[10px] text-muted-foreground">
                 {fps} FPS
+              </div>
+            )}
+            {isActive && !trackingReady && (
+              <div className="font-mono text-[10px] text-accent">
+                Loading model…
+              </div>
+            )}
+            {isActive && trackingError && (
+              <div className="font-mono text-[10px] text-destructive max-w-[200px] truncate">
+                ⚠️ {trackingError}
               </div>
             )}
 
