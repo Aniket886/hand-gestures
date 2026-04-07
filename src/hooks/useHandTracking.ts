@@ -402,7 +402,7 @@ export function useHandTracking(
     cleanup();
     setState({
       isLoading: false, isActive: false, trackingReady: false, error: null, gesture: null, landmarks: null,
-      hands: [], fps: 0, writingTip: null, isWriting: false,
+      hands: [], fps: 0, writingTip: null, isWriting: false, stringMeasurements: [],
     });
   }, [cleanup]);
 
