@@ -15,7 +15,7 @@ import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
-import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2 } from "lucide-react";
+import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2 } from "lucide-react";
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -78,7 +78,7 @@ const Index = () => {
   const drawStringRef = useRef(true);
   drawStringRef.current = featureFlags.fingerString;
 
-  const { isActive, error: cameraError, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
+  const { isActive, isLoading, error: cameraError, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction,
@@ -207,7 +207,7 @@ const Index = () => {
             </div>
           )}
 
-          {!isActive && (
+          {!isActive && !isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90">
               <Camera className="w-16 h-16 text-muted-foreground mb-3" />
               <p className="font-mono text-sm text-muted-foreground text-center px-4">
@@ -218,6 +218,18 @@ const Index = () => {
                   ⚠️ {cameraError}
                 </p>
               )}
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 z-40">
+              <Loader2 className="w-12 h-12 text-primary animate-spin mb-3" />
+              <p className="font-mono text-sm text-primary text-center">
+                Initializing hand tracking model…
+              </p>
+              <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                Loading MediaPipe WASM
+              </p>
             </div>
           )}
 
