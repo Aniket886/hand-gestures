@@ -15,7 +15,7 @@ import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
-import { Camera, CameraOff, Hand, Settings, Presentation } from "lucide-react";
+import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2 } from "lucide-react";
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
