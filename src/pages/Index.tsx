@@ -78,7 +78,7 @@ const Index = () => {
   const drawStringRef = useRef(true);
   drawStringRef.current = featureFlags.fingerString;
 
-  const { isActive, isLoading, error: cameraError, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
+  const { isActive, isLoading, trackingReady, error: cameraError, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction,
