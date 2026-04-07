@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Hands, Results } from "@mediapipe/hands";
+import * as handsModule from "@mediapipe/hands";
 import { classifyGesture, detectSwipe, resetSwipeHistory, type GestureResult, type GestureType } from "@/lib/gestures";
+
+type Hands = any;
+type Results = any;
 
 const MEDIAPIPE_VERSION = "0.4.1675469240";
 
