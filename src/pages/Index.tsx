@@ -26,6 +26,7 @@ const Index = () => {
     handOverlay: true,
     faceEmotion: true,
     fingerString: true,
+    measuring: true,
     soundEnabled: true,
     hapticEnabled: true,
     voiceEnabled: true,
@@ -78,12 +79,16 @@ const Index = () => {
   const drawStringRef = useRef(true);
   drawStringRef.current = featureFlags.fingerString;
 
+  const drawMeasureRef = useRef(true);
+  drawMeasureRef.current = featureFlags.measuring;
+
   const { isActive, isLoading, trackingReady, error: cameraError, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction,
     handOverlayRef,
-    drawStringRef
+    drawStringRef,
+    drawMeasureRef
   );
 
   const { emotion, isLoading: emotionLoading, startDetection, stopDetection } = useFaceEmotion(
