@@ -33,10 +33,12 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
   const strokesRef = useRef<DrawingStroke[]>([]);
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
   const wasWritingRef = useRef(false);
+  const smoothedRef = useRef<{ x: number; y: number } | null>(null);
   const [color, setColor] = useState(COLORS[0]);
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [showPalette, setShowPalette] = useState(false);
   const [strokeCount, setStrokeCount] = useState(0);
+  const SMOOTHING = 0.35; // lower = smoother but laggier
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
