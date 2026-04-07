@@ -106,22 +106,35 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
 
     if (isWriting && writingTip) {
       // Mirror x to match the flipped video feed
-      const mirroredX = 1 - writingTip.x;
+      const rawX = 1 - writingTip.x;
+      const rawY = writingTip.y;
+
+      // Apply exponential smoothing
+      let sx: number, sy: number;
+      if (smoothedRef.current && wasWritingRef.current) {
+        sx = smoothedRef.current.x + SMOOTHING * (rawX - smoothedRef.current.x);
+        sy = smoothedRef.current.y + SMOOTHING * (rawY - smoothedRef.current.y);
+      } else {
+        sx = rawX;
+        sy = rawY;
+      }
+      smoothedRef.current = { x: sx, y: sy };
+
       if (!wasWritingRef.current) {
         // Start new stroke
         currentStrokeRef.current = {
-          points: [{ x: mirroredX, y: writingTip.y }],
+          points: [{ x: sx, y: sy }],
           color,
           width: strokeWidth,
         };
       } else if (currentStrokeRef.current) {
-        // Continue stroke — only add point if distance is meaningful
+        // Continue stroke — add point at small intervals for smooth curves
         const pts = currentStrokeRef.current.points;
         const last = pts[pts.length - 1];
-        const dx = mirroredX - last.x;
-        const dy = writingTip.y - last.y;
-        if (Math.sqrt(dx * dx + dy * dy) > 0.003) {
-          currentStrokeRef.current.points.push({ x: mirroredX, y: writingTip.y });
+        const dx = sx - last.x;
+        const dy = sy - last.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 0.002) {
+          currentStrokeRef.current.points.push({ x: sx, y: sy });
         }
       }
       wasWritingRef.current = true;
@@ -133,6 +146,7 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
       }
       currentStrokeRef.current = null;
       wasWritingRef.current = false;
+      smoothedRef.current = null;
     }
 
     redraw();
