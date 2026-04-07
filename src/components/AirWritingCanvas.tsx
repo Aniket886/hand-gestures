@@ -63,9 +63,23 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
 
       const pts = stroke.points;
       ctx.moveTo(pts[0].x * canvas.width, pts[0].y * canvas.height);
-      for (let i = 1; i < pts.length; i++) {
-        ctx.lineTo(pts[i].x * canvas.width, pts[i].y * canvas.height);
+
+      if (pts.length === 2) {
+        ctx.lineTo(pts[1].x * canvas.width, pts[1].y * canvas.height);
+      } else {
+        // Use quadratic bezier curves through midpoints for smooth lines
+        for (let i = 1; i < pts.length - 1; i++) {
+          const cpX = pts[i].x * canvas.width;
+          const cpY = pts[i].y * canvas.height;
+          const nextX = ((pts[i].x + pts[i + 1].x) / 2) * canvas.width;
+          const nextY = ((pts[i].y + pts[i + 1].y) / 2) * canvas.height;
+          ctx.quadraticCurveTo(cpX, cpY, nextX, nextY);
+        }
+        // Draw to the last point
+        const last = pts[pts.length - 1];
+        ctx.lineTo(last.x * canvas.width, last.y * canvas.height);
       }
+
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
