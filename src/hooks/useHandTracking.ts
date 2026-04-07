@@ -130,195 +130,200 @@ export function useHandTracking(
       return;
     }
 
-    const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
-    });
+    // Camera feed is live — show it immediately
+    setState((s) => ({ ...s, isLoading: false, isActive: true }));
 
-    hands.setOptions({
-      maxNumHands: 2,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.5,
-    });
+    try {
+      const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+      });
 
-    hands.onResults((results: Results) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      hands.setOptions({
+        maxNumHands: 2,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.5,
+      });
 
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hands.onResults((results: Results) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
 
-      // FPS
-      frameCountRef.current++;
-      const now = Date.now();
-      if (now - lastFpsTime.current >= 1000) {
-        const fps = frameCountRef.current;
-        frameCountRef.current = 0;
-        lastFpsTime.current = now;
-        setState((s) => ({ ...s, fps }));
-      }
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const handCount = results.multiHandLandmarks?.length || 0;
-
-      if (handCount > 0) {
-        const handsData: HandData[] = [];
-        let primaryGesture: GestureResult | null = null;
-        let writingTip: { x: number; y: number } | null = null;
-        let isWriting = false;
-
-        for (let h = 0; h < handCount; h++) {
-          const landmarks = results.multiHandLandmarks[h];
-          const handedness = results.multiHandedness?.[h]?.label || (h === 0 ? "Right" : "Left");
-          const colors = HAND_COLORS[handedness] || HAND_COLORS.Right;
-
-          const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
-
-          if (shouldDraw) {
-            ctx.strokeStyle = colors.line;
-            ctx.lineWidth = 2;
-            ctx.shadowColor = colors.line;
-            ctx.shadowBlur = 8;
-
-            for (const [i, j] of CONNECTIONS) {
-              const a = landmarks[i];
-              const b = landmarks[j];
-              ctx.beginPath();
-              ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
-              ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
-              ctx.stroke();
-            }
-
-            for (let i = 0; i < landmarks.length; i++) {
-              const lm = landmarks[i];
-              const x = lm.x * canvas.width;
-              const y = lm.y * canvas.height;
-              const isTip = [4, 8, 12, 16, 20].includes(i);
-
-              ctx.beginPath();
-              ctx.arc(x, y, isTip ? 6 : 3, 0, 2 * Math.PI);
-              ctx.fillStyle = isTip ? colors.tip : colors.dot;
-              ctx.shadowColor = isTip ? colors.tip : colors.dot;
-              ctx.shadowBlur = isTip ? 15 : 8;
-              ctx.fill();
-            }
-
-            ctx.shadowBlur = 0;
-          }
-
-          const gesture = classifyGesture(landmarks as any);
-
-          handsData.push({ landmarks: landmarks as any, gesture, handedness });
-
-          if (isWritingPose(landmarks as any)) {
-            const indexTip = landmarks[8];
-            writingTip = { x: indexTip.x, y: indexTip.y };
-            isWriting = true;
-
-            ctx.beginPath();
-            ctx.arc(indexTip.x * canvas.width, indexTip.y * canvas.height, 12, 0, 2 * Math.PI);
-            ctx.strokeStyle = "hsl(0, 100%, 60%)";
-            ctx.lineWidth = 2;
-            ctx.shadowColor = "hsl(0, 100%, 60%)";
-            ctx.shadowBlur = 15;
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-          }
-
-          if (!primaryGesture || gesture.confidence > primaryGesture.confidence) {
-            primaryGesture = gesture;
-          }
+        // FPS
+        frameCountRef.current++;
+        const now = Date.now();
+        if (now - lastFpsTime.current >= 1000) {
+          const fps = frameCountRef.current;
+          frameCountRef.current = 0;
+          lastFpsTime.current = now;
+          setState((s) => ({ ...s, fps }));
         }
 
-        // Draw finger strings
-        const shouldDrawStrings = drawStringRef ? drawStringRef.current : false;
-        if (shouldDrawStrings) {
-          const allTips: { x: number; y: number }[] = [];
-          const fingerChecks: [number, number][] = [[4, 3], [8, 6], [12, 10], [16, 14], [20, 18]];
-          for (const hand of handsData) {
-            for (const [tip, pip] of fingerChecks) {
-              if (isFingerUp(hand.landmarks, tip, pip, 0)) {
-                const lm = hand.landmarks[tip];
-                allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height });
-              }
-            }
-          }
-          if (allTips.length >= 2) {
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 12;
+        const handCount = results.multiHandLandmarks?.length || 0;
 
-            for (let i = 0; i < allTips.length; i++) {
-              for (let j = i + 1; j < allTips.length; j++) {
-                const color = STRING_COLORS[(i + j) % STRING_COLORS.length];
-                ctx.strokeStyle = color;
-                ctx.shadowColor = color;
-                ctx.globalAlpha = 0.7;
+        if (handCount > 0) {
+          const handsData: HandData[] = [];
+          let primaryGesture: GestureResult | null = null;
+          let writingTip: { x: number; y: number } | null = null;
+          let isWriting = false;
+
+          for (let h = 0; h < handCount; h++) {
+            const landmarks = results.multiHandLandmarks[h];
+            const handedness = results.multiHandedness?.[h]?.label || (h === 0 ? "Right" : "Left");
+            const colors = HAND_COLORS[handedness] || HAND_COLORS.Right;
+
+            const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
+
+            if (shouldDraw) {
+              ctx.strokeStyle = colors.line;
+              ctx.lineWidth = 2;
+              ctx.shadowColor = colors.line;
+              ctx.shadowBlur = 8;
+
+              for (const [i, j] of CONNECTIONS) {
+                const a = landmarks[i];
+                const b = landmarks[j];
                 ctx.beginPath();
-                ctx.moveTo(allTips[i].x, allTips[i].y);
-                ctx.lineTo(allTips[j].x, allTips[j].y);
+                ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
+                ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
                 ctx.stroke();
               }
+
+              for (let i = 0; i < landmarks.length; i++) {
+                const lm = landmarks[i];
+                const x = lm.x * canvas.width;
+                const y = lm.y * canvas.height;
+                const isTip = [4, 8, 12, 16, 20].includes(i);
+
+                ctx.beginPath();
+                ctx.arc(x, y, isTip ? 6 : 3, 0, 2 * Math.PI);
+                ctx.fillStyle = isTip ? colors.tip : colors.dot;
+                ctx.shadowColor = isTip ? colors.tip : colors.dot;
+                ctx.shadowBlur = isTip ? 15 : 8;
+                ctx.fill();
+              }
+
+              ctx.shadowBlur = 0;
             }
-            ctx.globalAlpha = 1;
-            ctx.shadowBlur = 0;
+
+            const gesture = classifyGesture(landmarks as any);
+
+            handsData.push({ landmarks: landmarks as any, gesture, handedness });
+
+            if (isWritingPose(landmarks as any)) {
+              const indexTip = landmarks[8];
+              writingTip = { x: indexTip.x, y: indexTip.y };
+              isWriting = true;
+
+              ctx.beginPath();
+              ctx.arc(indexTip.x * canvas.width, indexTip.y * canvas.height, 12, 0, 2 * Math.PI);
+              ctx.strokeStyle = "hsl(0, 100%, 60%)";
+              ctx.lineWidth = 2;
+              ctx.shadowColor = "hsl(0, 100%, 60%)";
+              ctx.shadowBlur = 15;
+              ctx.stroke();
+              ctx.shadowBlur = 0;
+            }
+
+            if (!primaryGesture || gesture.confidence > primaryGesture.confidence) {
+              primaryGesture = gesture;
+            }
           }
-        }
 
-        const swipe = detectSwipe(handsData[0].landmarks);
-        const finalGesture = swipe
-          ? {
-              gesture: swipe,
-              confidence: 0.8,
-              label: swipe === "swipe_left" ? "Swipe Left" : "Swipe Right",
-              action: swipe === "swipe_left" ? "Next Slide →" : "Previous Slide ←",
-              emoji: swipe === "swipe_left" ? "👈" : "👉",
+          // Draw finger strings
+          const shouldDrawStrings = drawStringRef ? drawStringRef.current : false;
+          if (shouldDrawStrings) {
+            const allTips: { x: number; y: number }[] = [];
+            const fingerChecks: [number, number][] = [[4, 3], [8, 6], [12, 10], [16, 14], [20, 18]];
+            for (const hand of handsData) {
+              for (const [tip, pip] of fingerChecks) {
+                if (isFingerUp(hand.landmarks, tip, pip, 0)) {
+                  const lm = hand.landmarks[tip];
+                  allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height });
+                }
+              }
             }
-          : primaryGesture;
+            if (allTips.length >= 2) {
+              ctx.lineWidth = 2;
+              ctx.shadowBlur = 12;
 
-        setState((s) => ({
-          ...s,
-          gesture: finalGesture,
-          landmarks: handsData[0].landmarks,
-          hands: handsData,
-          isLoading: false,
-          isActive: true,
-          writingTip: isWriting ? writingTip : null,
-          isWriting,
-        }));
+              for (let i = 0; i < allTips.length; i++) {
+                for (let j = i + 1; j < allTips.length; j++) {
+                  const color = STRING_COLORS[(i + j) % STRING_COLORS.length];
+                  ctx.strokeStyle = color;
+                  ctx.shadowColor = color;
+                  ctx.globalAlpha = 0.7;
+                  ctx.beginPath();
+                  ctx.moveTo(allTips[i].x, allTips[i].y);
+                  ctx.lineTo(allTips[j].x, allTips[j].y);
+                  ctx.stroke();
+                }
+              }
+              ctx.globalAlpha = 1;
+              ctx.shadowBlur = 0;
+            }
+          }
 
-        if (finalGesture && finalGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
-          lastActionTime.current = now;
-          gestureActionRef.current?.(finalGesture.gesture);
+          const swipe = detectSwipe(handsData[0].landmarks);
+          const finalGesture = swipe
+            ? {
+                gesture: swipe,
+                confidence: 0.8,
+                label: swipe === "swipe_left" ? "Swipe Left" : "Swipe Right",
+                action: swipe === "swipe_left" ? "Next Slide →" : "Previous Slide ←",
+                emoji: swipe === "swipe_left" ? "👈" : "👉",
+              }
+            : primaryGesture;
+
+          setState((s) => ({
+            ...s,
+            gesture: finalGesture,
+            landmarks: handsData[0].landmarks,
+            hands: handsData,
+            writingTip: isWriting ? writingTip : null,
+            isWriting,
+          }));
+
+          if (finalGesture && finalGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
+            lastActionTime.current = now;
+            gestureActionRef.current?.(finalGesture.gesture);
+          }
+        } else {
+          setState((s) => ({
+            ...s,
+            gesture: null,
+            landmarks: null,
+            hands: [],
+            writingTip: null,
+            isWriting: false,
+          }));
         }
-      } else {
-        setState((s) => ({
-          ...s,
-          gesture: null,
-          landmarks: null,
-          hands: [],
-          writingTip: null,
-          isWriting: false,
-        }));
-      }
-    });
+      });
 
-    handsRef.current = hands;
+      handsRef.current = hands;
 
-    // Use a frame loop instead of MediaPipe Camera to avoid double getUserMedia
-    let animId: number;
-    const processFrame = async () => {
-      if (videoRef.current && videoRef.current.readyState >= 2) {
-        await hands.send({ image: videoRef.current });
-      }
+      // Use a frame loop instead of MediaPipe Camera to avoid double getUserMedia
+      let animId: number;
+      const processFrame = async () => {
+        if (videoRef.current && videoRef.current.readyState >= 2) {
+          await hands.send({ image: videoRef.current });
+        }
+        animId = requestAnimationFrame(processFrame);
+      };
       animId = requestAnimationFrame(processFrame);
-    };
-    animId = requestAnimationFrame(processFrame);
 
-    // Store cleanup for the frame loop
-    cameraRef.current = { stop: () => cancelAnimationFrame(animId) } as any;
-    setState((s) => ({ ...s, isLoading: false, isActive: true }));
+      // Store cleanup for the frame loop
+      cameraRef.current = { stop: () => cancelAnimationFrame(animId) } as any;
+    } catch (err: any) {
+      console.error("MediaPipe initialization failed:", err);
+      setState((s) => ({ ...s, error: `Hand tracking init failed: ${err?.message || "Unknown error"}. Camera feed is still active.` }));
+    }
   }, [videoRef, canvasRef]);
 
   const cleanup = useCallback(() => {
