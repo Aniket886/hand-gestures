@@ -85,6 +85,7 @@ export function useHandTracking(
   const [state, setState] = useState<HandTrackingState>({
     isLoading: true,
     isActive: false,
+    error: null,
     gesture: null,
     landmarks: null,
     hands: [],
