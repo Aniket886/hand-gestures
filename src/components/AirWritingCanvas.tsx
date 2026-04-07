@@ -26,6 +26,7 @@ interface AirWritingCanvasProps {
   writingTip: { x: number; y: number } | null;
   isWriting: boolean;
   isActive: boolean;
+  currentGesture?: string | null;
 }
 
 const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasProps) => {
