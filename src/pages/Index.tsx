@@ -7,7 +7,7 @@ import { useEngagementScore } from "@/hooks/useEngagementScore";
 import { useGestureMappings, type PresentationAction } from "@/hooks/useGestureMappings";
 import GestureHUD from "@/components/GestureHUD";
 import EmotionHUD from "@/components/EmotionHUD";
-import DemoPresentation from "@/components/DemoPresentation";
+
 import GestureLegend from "@/components/GestureLegend";
 import EngagementPanel from "@/components/EngagementPanel";
 import FeatureToggles, { type FeatureFlags } from "@/components/FeatureToggles";
