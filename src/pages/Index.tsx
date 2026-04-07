@@ -202,6 +202,7 @@ const Index = () => {
                 writingTip={writingTip}
                 isWriting={isWriting}
                 isActive={isActive}
+                currentGesture={gesture?.gesture ?? null}
               />
             </div>
           )}

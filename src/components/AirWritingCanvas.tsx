@@ -153,6 +153,13 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive, currentGesture }: A
     redraw();
   }, [writingTip, isWriting, isActive, color, strokeWidth, redraw]);
 
+  const clearCanvas = useCallback(() => {
+    strokesRef.current = [];
+    currentStrokeRef.current = null;
+    setStrokeCount(0);
+    redraw();
+  }, [redraw]);
+
   // Open palm gesture → erase all
   const palmClearedRef = useRef(false);
   useEffect(() => {
@@ -163,13 +170,6 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive, currentGesture }: A
       palmClearedRef.current = false;
     }
   }, [currentGesture, clearCanvas]);
-
-  const clearCanvas = useCallback(() => {
-    strokesRef.current = [];
-    currentStrokeRef.current = null;
-    setStrokeCount(0);
-    redraw();
-  }, [redraw]);
 
   const undoLast = useCallback(() => {
     strokesRef.current.pop();
