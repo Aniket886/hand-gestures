@@ -103,17 +103,30 @@ export function useHandTracking(
   gestureActionRef.current = onGestureAction;
 
   const start = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    setState((s) => ({ ...s, error: null, isLoading: true }));
 
-    // Request camera permission explicitly first
+    if (!videoRef.current || !canvasRef.current) {
+      setState((s) => ({ ...s, isLoading: false, isActive: false, error: "Camera elements not ready. Please try again." }));
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setState((s) => ({ ...s, isLoading: false, isActive: false, error: "Camera requires a secure (HTTPS) connection. Please use the published URL or localhost." }));
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-      // Assign stream to video element so MediaPipe Camera can use it
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
-    } catch (err) {
-      console.error("Camera access denied or unavailable:", err);
-      setState((s) => ({ ...s, isLoading: false, isActive: false }));
+    } catch (err: any) {
+      const msg = err?.name === "NotAllowedError"
+        ? "Camera access denied. Please allow camera permission in your browser settings."
+        : err?.name === "NotFoundError"
+        ? "No camera found. Please connect a camera and try again."
+        : `Camera error: ${err?.message || "Unknown error"}`;
+      console.error("Camera access failed:", err);
+      setState((s) => ({ ...s, isLoading: false, isActive: false, error: msg }));
       return;
     }
 
