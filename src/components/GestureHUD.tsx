@@ -1,26 +1,36 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { GestureResult } from "@/lib/gestures";
+import type { HandData } from "@/hooks/useHandTracking";
 
 interface GestureHUDProps {
   gesture: GestureResult | null;
   fps: number;
   isActive: boolean;
+  hands?: HandData[];
+  isWriting?: boolean;
 }
 
-const GestureHUD = ({ gesture, fps, isActive }: GestureHUDProps) => {
+const GestureHUD = ({ gesture, fps, isActive, hands = [], isWriting }: GestureHUDProps) => {
   return (
     <div className="absolute top-4 left-4 right-4 flex items-start justify-between pointer-events-none z-10">
-      {/* Status + FPS */}
+      {/* Status + FPS + Hand count */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 bg-card/80 backdrop-blur-md border border-border rounded-lg px-3 py-2">
           <div className={`w-2 h-2 rounded-full ${isActive ? "bg-primary animate-pulse-glow" : "bg-muted-foreground"}`} />
           <span className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
-            {isActive ? "tracking" : "standby"}
+            {isWriting ? "✏️ drawing" : isActive ? "tracking" : "standby"}
           </span>
         </div>
         {isActive && (
-          <div className="bg-card/80 backdrop-blur-md border border-border rounded-lg px-3 py-2">
-            <span className="font-mono text-xs text-muted-foreground">{fps} FPS</span>
+          <div className="flex gap-2">
+            <div className="bg-card/80 backdrop-blur-md border border-border rounded-lg px-3 py-2">
+              <span className="font-mono text-xs text-muted-foreground">{fps} FPS</span>
+            </div>
+            <div className="bg-card/80 backdrop-blur-md border border-border rounded-lg px-3 py-2">
+              <span className="font-mono text-xs text-muted-foreground">
+                {hands.length === 0 ? "No hands" : hands.length === 1 ? "1 hand" : "2 hands"}
+              </span>
+            </div>
           </div>
         )}
       </div>
