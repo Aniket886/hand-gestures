@@ -231,25 +231,25 @@ export function useHandTracking(
               }
             }
           }
-          if (allTips.length < 2) { ctx.shadowBlur = 0; }
+          if (allTips.length >= 2) {
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 12;
 
-          ctx.lineWidth = 2;
-          ctx.shadowBlur = 12;
-
-          for (let i = 0; i < allTips.length; i++) {
-            for (let j = i + 1; j < allTips.length; j++) {
-              const color = STRING_COLORS[(i + j) % STRING_COLORS.length];
-              ctx.strokeStyle = color;
-              ctx.shadowColor = color;
-              ctx.globalAlpha = 0.7;
-              ctx.beginPath();
-              ctx.moveTo(allTips[i].x, allTips[i].y);
-              ctx.lineTo(allTips[j].x, allTips[j].y);
-              ctx.stroke();
+            for (let i = 0; i < allTips.length; i++) {
+              for (let j = i + 1; j < allTips.length; j++) {
+                const color = STRING_COLORS[(i + j) % STRING_COLORS.length];
+                ctx.strokeStyle = color;
+                ctx.shadowColor = color;
+                ctx.globalAlpha = 0.7;
+                ctx.beginPath();
+                ctx.moveTo(allTips[i].x, allTips[i].y);
+                ctx.lineTo(allTips[j].x, allTips[j].y);
+                ctx.stroke();
+              }
             }
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
           }
-          ctx.globalAlpha = 1;
-          ctx.shadowBlur = 0;
         }
 
         const swipe = detectSwipe(handsData[0].landmarks);
