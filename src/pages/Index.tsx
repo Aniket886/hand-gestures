@@ -2,11 +2,13 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useHandTracking } from "@/hooks/useHandTracking";
 import { useFaceEmotion } from "@/hooks/useFaceEmotion";
+import { useEngagementScore } from "@/hooks/useEngagementScore";
 import { useGestureMappings, type PresentationAction } from "@/hooks/useGestureMappings";
 import GestureHUD from "@/components/GestureHUD";
 import EmotionHUD from "@/components/EmotionHUD";
 import DemoPresentation from "@/components/DemoPresentation";
 import GestureLegend from "@/components/GestureLegend";
+import EngagementPanel from "@/components/EngagementPanel";
 import FeatureToggles, { type FeatureFlags } from "@/components/FeatureToggles";
 import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
@@ -97,14 +99,24 @@ const Index = () => {
     featureFlags.faceEmotion
   );
 
+  const { engagement, updateEngagement, resetEngagement } = useEngagementScore();
+
   // Start/stop face emotion detection when camera or toggle changes
   useEffect(() => {
     if (isActive && featureFlags.faceEmotion) {
       startDetection();
     } else {
       stopDetection();
+      resetEngagement();
     }
-  }, [isActive, featureFlags.faceEmotion, startDetection, stopDetection]);
+  }, [isActive, featureFlags.faceEmotion, startDetection, stopDetection, resetEngagement]);
+
+  // Feed emotion data into engagement score
+  useEffect(() => {
+    if (emotion && featureFlags.faceEmotion) {
+      updateEngagement(emotion);
+    }
+  }, [emotion, featureFlags.faceEmotion, updateEngagement]);
 
   const handleStart = useCallback(() => {
     resumeAudioContext();
@@ -212,6 +224,10 @@ const Index = () => {
             </div>
 
             <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} />
+
+            {featureFlags.faceEmotion && (
+              <EngagementPanel data={engagement} isActive={isActive} />
+            )}
           </div>
 
           {/* Presentation area with air-writing overlay */}
