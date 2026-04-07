@@ -82,7 +82,8 @@ const Index = () => {
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction,
-    handOverlayRef
+    handOverlayRef,
+    drawStringRef
   );
 
   const { emotion, isLoading: emotionLoading, startDetection, stopDetection } = useFaceEmotion(
