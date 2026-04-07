@@ -26,9 +26,10 @@ interface AirWritingCanvasProps {
   writingTip: { x: number; y: number } | null;
   isWriting: boolean;
   isActive: boolean;
+  currentGesture?: string | null;
 }
 
-const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasProps) => {
+const AirWritingCanvas = ({ writingTip, isWriting, isActive, currentGesture }: AirWritingCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strokesRef = useRef<DrawingStroke[]>([]);
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
@@ -158,6 +159,17 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
     setStrokeCount(0);
     redraw();
   }, [redraw]);
+
+  // Open palm gesture → erase all
+  const palmClearedRef = useRef(false);
+  useEffect(() => {
+    if (currentGesture === "open_palm" && !palmClearedRef.current && strokesRef.current.length > 0) {
+      palmClearedRef.current = true;
+      clearCanvas();
+    } else if (currentGesture !== "open_palm") {
+      palmClearedRef.current = false;
+    }
+  }, [currentGesture, clearCanvas]);
 
   const undoLast = useCallback(() => {
     strokesRef.current.pop();
