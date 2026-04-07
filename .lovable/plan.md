@@ -1,41 +1,31 @@
 
 
-# Fix: Features Not Working on Published Site
+# Fix: Hand Tracking Not Working (0 FPS, 0 Hands)
 
 ## Problem
-Camera opens successfully but hand tracking, gestures, and emotion detection don't work. The likely cause is that MediaPipe WASM loading or processing fails silently on the published site.
+The screenshot shows the camera feed is live and emotion detection works (HAPPY), but hand tracking shows "0 FPS · 0 hands". MediaPipe Hands is not processing frames.
 
-Two specific issues in `src/hooks/useHandTracking.ts`:
-
-1. **Frame loop crashes silently** (lines 313-318): If `hands.send()` throws (e.g., WASM not fully loaded, cross-origin issue), the `await` rejects and `requestAnimationFrame` is never called again. The loop dies with no error shown to the user.
-
-2. **No retry or error recovery**: Once the frame loop dies, the camera keeps showing but nothing processes.
+The root cause: the frame loop starts immediately via `requestAnimationFrame` after constructing `Hands`, but MediaPipe's WASM model hasn't finished loading yet. The `hands.send()` call silently fails or rejects because initialization isn't complete. While the try-catch prevents the loop from dying, the model never actually initializes properly because there's no explicit `await hands.initialize()` call.
 
 ## Fix
 
-### 1. Add try-catch inside the frame loop (`src/hooks/useHandTracking.ts`)
-Wrap `await hands.send({ image: videoRef.current })` in a try-catch so one failed frame doesn't kill the entire loop. Log the first error and continue retrying.
+**Edit**: `src/hooks/useHandTracking.ts`
+
+1. **Add explicit `hands.initialize()` call** before starting the frame loop. This ensures the WASM model is fully loaded before we start sending frames:
 
 ```typescript
-const processFrame = async () => {
-  try {
-    if (videoRef.current && videoRef.current.readyState >= 2) {
-      await hands.send({ image: videoRef.current });
-    }
-  } catch (err) {
-    console.warn("Hand tracking frame error:", err);
-  }
-  animId = requestAnimationFrame(processFrame);
-};
+// After hands.onResults(...) setup, before the frame loop:
+await hands.initialize();
 ```
 
-### 2. Add tracking status indicator
-Update the error state if MediaPipe repeatedly fails to process frames (e.g., after 10 consecutive failures, show a warning). This gives the user visibility into what's happening.
+2. **Add console logging** for initialization success/failure to help debug:
 
-### 3. Add cross-origin handling for MediaPipe CDN
-The `locateFile` URL uses jsDelivr which should work, but add error handling for the `Hands` constructor initialization that explicitly checks if WASM files loaded.
+```typescript
+console.log("MediaPipe Hands initialized successfully");
+```
+
+This single change — adding `await hands.initialize()` between setting up `onResults` and starting the `requestAnimationFrame` loop — should fix the issue. The model will be fully loaded before any frames are sent.
 
 ### Files
-- **Edit**: `src/hooks/useHandTracking.ts` — resilient frame loop, error surfacing
-- **Edit**: `src/hooks/useFaceEmotion.ts` — same pattern: add try-catch around detection interval
+- **Edit**: `src/hooks/useHandTracking.ts` — add `await hands.initialize()` after `hands.onResults()` setup, before frame loop
 
