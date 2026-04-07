@@ -1,22 +1,41 @@
 
 
-# Fix: Camera Shows Feed but Overlay Still Visible
+# Fix: Features Not Working on Published Site
 
 ## Problem
-The camera feed is visibly playing behind the overlay, but the "Click Start Camera" message stays on top. This means `getUserMedia` succeeded (video is playing) but `isActive` never becomes `true`.
+Camera opens successfully but hand tracking, gestures, and emotion detection don't work. The likely cause is that MediaPipe WASM loading or processing fails silently on the published site.
 
-The root cause: the MediaPipe `Hands` initialization (lines 133-305) is not wrapped in a try-catch. If `new Hands()`, `hands.setOptions()`, or `hands.onResults()` throws during WASM loading, execution never reaches line 321 where `isActive` is set to `true`. The video keeps playing but the app thinks the camera isn't started.
+Two specific issues in `src/hooks/useHandTracking.ts`:
+
+1. **Frame loop crashes silently** (lines 313-318): If `hands.send()` throws (e.g., WASM not fully loaded, cross-origin issue), the `await` rejects and `requestAnimationFrame` is never called again. The loop dies with no error shown to the user.
+
+2. **No retry or error recovery**: Once the frame loop dies, the camera keeps showing but nothing processes.
 
 ## Fix
 
-**Edit**: `src/hooks/useHandTracking.ts`
+### 1. Add try-catch inside the frame loop (`src/hooks/useHandTracking.ts`)
+Wrap `await hands.send({ image: videoRef.current })` in a try-catch so one failed frame doesn't kill the entire loop. Log the first error and continue retrying.
 
-Wrap the entire MediaPipe initialization block (from `new Hands(...)` through setting up the frame loop and `setState({ isActive: true })`) in a try-catch. If MediaPipe fails to initialize, surface the error to the user and stop the video stream.
+```typescript
+const processFrame = async () => {
+  try {
+    if (videoRef.current && videoRef.current.readyState >= 2) {
+      await hands.send({ image: videoRef.current });
+    }
+  } catch (err) {
+    console.warn("Hand tracking frame error:", err);
+  }
+  animId = requestAnimationFrame(processFrame);
+};
+```
 
-Move `setState({ isActive: true })` to right after the video starts playing (after line 121), so the overlay hides as soon as the camera feed is live — independent of whether MediaPipe finishes loading. MediaPipe results will start flowing once WASM loads, but the user sees the camera immediately.
+### 2. Add tracking status indicator
+Update the error state if MediaPipe repeatedly fails to process frames (e.g., after 10 consecutive failures, show a warning). This gives the user visibility into what's happening.
 
-### Specific changes:
-1. Set `isActive: true` immediately after `videoRef.current.play()` succeeds (line 121)
-2. Wrap MediaPipe init (lines 133-320) in try-catch, setting error state on failure
-3. On MediaPipe init failure, also stop the video stream so state is consistent
+### 3. Add cross-origin handling for MediaPipe CDN
+The `locateFile` URL uses jsDelivr which should work, but add error handling for the `Hands` constructor initialization that explicitly checks if WASM files loaded.
+
+### Files
+- **Edit**: `src/hooks/useHandTracking.ts` — resilient frame loop, error surfacing
+- **Edit**: `src/hooks/useFaceEmotion.ts` — same pattern: add try-catch around detection interval
 
