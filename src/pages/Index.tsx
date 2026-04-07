@@ -204,13 +204,9 @@ const Index = () => {
               )}
 
               {isActive && (
-                <GestureHUD
-                  gesture={gesture}
-                  fps={fps}
-                  isActive={isActive}
-                  hands={hands}
-                  isWriting={isWriting}
-                />
+                <div className="absolute top-2 left-2 font-mono text-[10px] text-muted-foreground bg-card/70 backdrop-blur-sm px-2 py-1 rounded">
+                  {fps} FPS • {hands.length} hand{hands.length !== 1 ? "s" : ""}
+                </div>
               )}
 
               {isActive && featureFlags.faceEmotion && (
