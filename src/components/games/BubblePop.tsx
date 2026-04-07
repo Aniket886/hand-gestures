@@ -134,7 +134,7 @@ export default function BubblePop({ fingerPos, isActive, onScoreChange }: Bubble
                 width: b.size,
                 height: b.size,
                 transform: "translate(-50%, -50%)",
-                color: b.color,
+                color: `hsl(${b.color})`,
               }}
             >
               +1
