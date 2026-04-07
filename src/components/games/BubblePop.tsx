@@ -76,7 +76,7 @@ export default function BubblePop({ fingerPos, isActive, onScoreChange }: Bubble
     const fy = fingerPos.y * 100;
 
     setBubbles((prev) => {
-      let popped = false;
+      let popCount = 0;
       const next = prev.map((b) => {
         if (b.popped) return b;
         const dx = b.x - fx;
@@ -84,14 +84,14 @@ export default function BubblePop({ fingerPos, isActive, onScoreChange }: Bubble
         const dist = Math.sqrt(dx * dx + dy * dy);
         const hitRadius = (b.size / 10) + 3;
         if (dist < hitRadius) {
-          popped = true;
+          popCount++;
           return { ...b, popped: true };
         }
         return b;
       });
-      if (popped) {
-        scoreRef.current += 1;
-        onScoreChange(scoreRef.current);
+      if (popCount > 0) {
+        scoreRef.current += popCount;
+        setTimeout(() => onScoreChange(scoreRef.current), 0);
       }
       return next;
     });
