@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useHandTracking } from "@/hooks/useHandTracking";
 import { useFaceEmotion } from "@/hooks/useFaceEmotion";
