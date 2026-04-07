@@ -62,13 +62,20 @@ const Index = () => {
   }, []);
 
   const handleGestureAction = useCallback((gesture: GestureType) => {
+    const ff = featureFlagsRef.current;
     const mapping = mappings.find((m) => m.gesture === gesture);
     const label = mapping?.label || gesture;
-    triggerGestureFeedback(gesture, label, feedbackSettingsRef.current);
+    triggerGestureFeedback(gesture, label, {
+      soundEnabled: ff.soundEnabled,
+      hapticEnabled: ff.hapticEnabled,
+      voiceEnabled: ff.voiceEnabled,
+    });
 
-    const action = getActionRef.current(gesture);
-    if (action !== "none") {
-      executeAction(action);
+    if (ff.gestureNavigation) {
+      const action = getActionRef.current(gesture);
+      if (action !== "none") {
+        executeAction(action);
+      }
     }
   }, [mappings, executeAction]);
 
