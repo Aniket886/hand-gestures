@@ -29,7 +29,7 @@ interface AirWritingCanvasProps {
   currentGesture?: string | null;
 }
 
-const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasProps) => {
+const AirWritingCanvas = ({ writingTip, isWriting, isActive, currentGesture }: AirWritingCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strokesRef = useRef<DrawingStroke[]>([]);
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
