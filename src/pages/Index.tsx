@@ -1,8 +1,10 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useHandTracking } from "@/hooks/useHandTracking";
+import { useFaceEmotion } from "@/hooks/useFaceEmotion";
 import { useGestureMappings, type PresentationAction } from "@/hooks/useGestureMappings";
 import GestureHUD from "@/components/GestureHUD";
+import EmotionHUD from "@/components/EmotionHUD";
 import DemoPresentation from "@/components/DemoPresentation";
 import GestureLegend from "@/components/GestureLegend";
 import FeatureToggles, { type FeatureFlags } from "@/components/FeatureToggles";
@@ -22,6 +24,7 @@ const Index = () => {
     airWriting: true,
     gestureNavigation: true,
     handOverlay: true,
+    faceEmotion: true,
     soundEnabled: true,
     hapticEnabled: true,
     voiceEnabled: true,
@@ -88,6 +91,20 @@ const Index = () => {
     handleGestureAction,
     handOverlayRef
   );
+
+  const { emotion, isLoading: emotionLoading, startDetection, stopDetection } = useFaceEmotion(
+    videoRef as React.RefObject<HTMLVideoElement>,
+    featureFlags.faceEmotion
+  );
+
+  // Start/stop face emotion detection when camera or toggle changes
+  useEffect(() => {
+    if (isActive && featureFlags.faceEmotion) {
+      startDetection();
+    } else {
+      stopDetection();
+    }
+  }, [isActive, featureFlags.faceEmotion, startDetection, stopDetection]);
 
   const handleStart = useCallback(() => {
     resumeAudioContext();
@@ -178,6 +195,14 @@ const Index = () => {
                   isActive={isActive}
                   hands={hands}
                   isWriting={isWriting}
+                />
+              )}
+
+              {isActive && featureFlags.faceEmotion && (
+                <EmotionHUD
+                  emotion={emotion}
+                  isLoading={emotionLoading}
+                  isActive={isActive}
                 />
               )}
             </div>
