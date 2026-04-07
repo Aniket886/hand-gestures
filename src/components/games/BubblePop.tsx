@@ -18,12 +18,12 @@ interface BubblePopProps {
 }
 
 const COLORS = [
-  "hsl(var(--primary))",
-  "hsl(187, 100%, 50%)",
-  "hsl(150, 80%, 50%)",
-  "hsl(270, 80%, 60%)",
-  "hsl(40, 90%, 55%)",
-  "hsl(340, 80%, 55%)",
+  "187, 100%, 50%",
+  "150, 80%, 50%",
+  "270, 80%, 60%",
+  "40, 90%, 55%",
+  "340, 80%, 55%",
+  "220, 90%, 60%",
 ];
 
 let nextId = 0;
@@ -76,7 +76,7 @@ export default function BubblePop({ fingerPos, isActive, onScoreChange }: Bubble
     const fy = fingerPos.y * 100;
 
     setBubbles((prev) => {
-      let popped = false;
+      let popCount = 0;
       const next = prev.map((b) => {
         if (b.popped) return b;
         const dx = b.x - fx;
@@ -84,14 +84,14 @@ export default function BubblePop({ fingerPos, isActive, onScoreChange }: Bubble
         const dist = Math.sqrt(dx * dx + dy * dy);
         const hitRadius = (b.size / 10) + 3;
         if (dist < hitRadius) {
-          popped = true;
+          popCount++;
           return { ...b, popped: true };
         }
         return b;
       });
-      if (popped) {
-        scoreRef.current += 1;
-        onScoreChange(scoreRef.current);
+      if (popCount > 0) {
+        scoreRef.current += popCount;
+        setTimeout(() => onScoreChange(scoreRef.current), 0);
       }
       return next;
     });
@@ -134,7 +134,7 @@ export default function BubblePop({ fingerPos, isActive, onScoreChange }: Bubble
                 width: b.size,
                 height: b.size,
                 transform: "translate(-50%, -50%)",
-                color: b.color,
+                color: `hsl(${b.color})`,
               }}
             >
               +1
@@ -152,9 +152,9 @@ export default function BubblePop({ fingerPos, isActive, onScoreChange }: Bubble
                 width: b.size,
                 height: b.size,
                 transform: "translate(-50%, -50%)",
-                background: `radial-gradient(circle at 35% 35%, ${b.color}88, ${b.color})`,
-                boxShadow: `0 0 20px ${b.color}44`,
-                border: `1px solid ${b.color}66`,
+                background: `radial-gradient(circle at 35% 35%, hsla(${b.color}, 0.5), hsl(${b.color}))`,
+                boxShadow: `0 0 20px hsla(${b.color}, 0.25)`,
+                border: `1px solid hsla(${b.color}, 0.4)`,
               }}
             />
           )
