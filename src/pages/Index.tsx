@@ -222,6 +222,10 @@ const Index = () => {
             </div>
 
             <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} />
+
+            {featureFlags.faceEmotion && (
+              <EngagementPanel data={engagement} isActive={isActive} />
+            )}
           </div>
 
           {/* Presentation area with air-writing overlay */}
