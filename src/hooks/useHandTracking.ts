@@ -206,12 +206,41 @@ export function useHandTracking(
             ctx.shadowBlur = 0;
           }
 
-          handsData.push({ landmarks: landmarks as any, gesture, handedness });
 
           // Use first hand's gesture as primary (or the one with highest confidence)
           if (!primaryGesture || gesture.confidence > primaryGesture.confidence) {
             primaryGesture = gesture;
           }
+        }
+
+        // Draw finger strings connecting all fingertips
+        const shouldDrawStrings = drawStringRef ? drawStringRef.current : false;
+        if (shouldDrawStrings) {
+          const allTips: { x: number; y: number }[] = [];
+          for (const hand of handsData) {
+            for (const tipIdx of FINGERTIPS) {
+              const lm = hand.landmarks[tipIdx];
+              allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height });
+            }
+          }
+
+          ctx.lineWidth = 2;
+          ctx.shadowBlur = 12;
+
+          for (let i = 0; i < allTips.length; i++) {
+            for (let j = i + 1; j < allTips.length; j++) {
+              const color = STRING_COLORS[(i + j) % STRING_COLORS.length];
+              ctx.strokeStyle = color;
+              ctx.shadowColor = color;
+              ctx.globalAlpha = 0.7;
+              ctx.beginPath();
+              ctx.moveTo(allTips[i].x, allTips[i].y);
+              ctx.lineTo(allTips[j].x, allTips[j].y);
+              ctx.stroke();
+            }
+          }
+          ctx.globalAlpha = 1;
+          ctx.shadowBlur = 0;
         }
 
         // Swipe detection on primary hand
