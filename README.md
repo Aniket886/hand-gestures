@@ -8,53 +8,57 @@ A real-time hand gesture recognition web application built with **React**, **Med
 
 ## 📸 Features
 
-| Feature | Description |
-|---------|-------------|
-| **Hand Tracking** | Real-time multi-hand landmark detection (21 points per hand) |
-| **18+ Gesture Recognition** | Open palm, fist, peace, thumbs up/down, pinch, vulcan, rock, and more |
-| **Air Writing** | Draw in the air using your index finger (writing pose) |
-| **Open Palm Eraser** | Erase air-writing strokes by showing an open palm |
-| **Finger Strings** | Visual strings connecting raised fingertips across hands |
-| **Distance Measurement** | Measure distance between fingertips in centimeters (toggleable) |
-| **Emotion Detection** | Real-time facial emotion recognition (happy, sad, angry, surprised, etc.) |
-| **Engagement Score** | Combined metric from gestures + facial expressions |
-| **Presentation Mode** | Control slides with swipe gestures |
-| **Mini Games** | Bubble Pop, Catch Star, Gesture Match — all gesture-controlled |
-| **Haptic/Sound/Voice Feedback** | Multi-modal feedback on gesture recognition |
-| **Customizable Gesture Mappings** | Remap gestures to different actions |
+| Feature                           | Description                                                               |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| **Hand Tracking**                 | Real-time multi-hand landmark detection (21 points per hand)              |
+| **18+ Gesture Recognition**       | Open palm, fist, peace, thumbs up/down, pinch, vulcan, rock, and more     |
+| **Air Writing**                   | Draw in the air using your index finger (writing pose)                    |
+| **Open Palm Eraser**              | Erase air-writing strokes by showing an open palm                         |
+| **Finger Strings**                | Visual strings connecting raised fingertips across hands                  |
+| **Distance Measurement**          | Measure distance between fingertips in centimeters (toggleable)           |
+| **Emotion Detection**             | Real-time facial emotion recognition (happy, sad, angry, surprised, etc.) |
+| **Engagement Score**              | Combined metric from gestures + facial expressions                        |
+| **Presentation Mode**             | Control slides with swipe gestures                                        |
+| **Mini Games**                    | Bubble Pop, Catch Star, Gesture Match — all gesture-controlled            |
+| **Haptic/Sound/Voice Feedback**   | Multi-modal feedback on gesture recognition                               |
+| **Customizable Gesture Mappings** | Remap gestures to different actions                                       |
 
 ---
 
 ## 🛠 Tech Stack
 
 ### Frontend
-| Technology | Purpose |
-|------------|---------|
-| **React 18** | UI framework |
-| **TypeScript 5** | Type safety |
-| **Vite 5** | Build tool & dev server |
-| **Tailwind CSS 3** | Utility-first styling |
-| **Framer Motion** | Animations & transitions |
-| **React Router 6** | Client-side routing |
+
+| Technology         | Purpose                  |
+| ------------------ | ------------------------ |
+| **React 18**       | UI framework             |
+| **TypeScript 5**   | Type safety              |
+| **Vite 5**         | Build tool & dev server  |
+| **Tailwind CSS 3** | Utility-first styling    |
+| **Framer Motion**  | Animations & transitions |
+| **React Router 6** | Client-side routing      |
 
 ### AI / ML Libraries
-| Library | Purpose |
-|---------|---------|
+
+| Library             | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
 | **MediaPipe Hands** | Hand landmark detection (21 keypoints × 2 hands) |
-| **face-api.js** | Facial emotion recognition |
+| **face-api.js**     | Facial emotion recognition                       |
 
 ### UI Components
-| Library | Purpose |
-|---------|---------|
-| **shadcn/ui** | Accessible component primitives |
-| **Radix UI** | Headless UI primitives (dialog, tabs, tooltips, etc.) |
-| **Lucide React** | Icon library |
-| **Recharts** | Engagement score charts |
+
+| Library          | Purpose                                               |
+| ---------------- | ----------------------------------------------------- |
+| **shadcn/ui**    | Accessible component primitives                       |
+| **Radix UI**     | Headless UI primitives (dialog, tabs, tooltips, etc.) |
+| **Lucide React** | Icon library                                          |
+| **Recharts**     | Engagement score charts                               |
 
 ### State & Data
-| Library | Purpose |
-|---------|---------|
-| **TanStack React Query** | Async state management |
+
+| Library                   | Purpose                    |
+| ------------------------- | -------------------------- |
+| **TanStack React Query**  | Async state management     |
 | **React Hook Form + Zod** | Form handling & validation |
 
 ---
@@ -160,6 +164,7 @@ src/
 **Root Cause**: `@mediapipe/hands` does NOT export a standard ESM module. It uses a closure pattern (`za("Hands", od)`) that registers `Hands` on `globalThis`. Named imports like `import { Hands } from "@mediapipe/hands"` work in Vite's dev server (which handles CJS differently) but break in production builds where Rollup minifies and tree-shakes the import.
 
 **Solution**: Replaced static imports with a dynamic runtime loader:
+
 ```typescript
 // Broken in production
 import { Hands } from "@mediapipe/hands";
@@ -178,6 +183,7 @@ const HandsConstructor = (globalThis as any).Hands || (window as any).Hands;
 **Root Cause**: The `requestAnimationFrame` loop was sending frames to MediaPipe before the WASM model finished initializing. `hands.send()` silently discarded frames.
 
 **Solution**: Added `await hands.initialize()` before starting the frame loop, with a timeout wrapper:
+
 ```typescript
 await Promise.race([
   hands.initialize(),
@@ -195,6 +201,7 @@ await Promise.race([
 **Problem**: MediaPipe initialization failed on devices without WebGL2 support or with restricted GPU access.
 
 **Solution**: Implemented GPU → CPU fallback chain:
+
 ```typescript
 try {
   hands = await createAndInitHands(locateFile, onResults, false, 15000); // GPU
@@ -212,6 +219,7 @@ try {
 **Root Cause**: `getUserMedia` requires a **secure context** (HTTPS or localhost).
 
 **Solution**: Added explicit guard checks:
+
 ```typescript
 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
   setError("Camera requires HTTPS. Please use the published URL or localhost.");
@@ -227,6 +235,7 @@ if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 **Root Cause**: The camera canvas uses CSS `transform: scaleX(-1)` for a mirror view. Canvas-drawn text inherits this flip.
 
 **Solution**: Counter-flipped the text rendering:
+
 ```typescript
 ctx.save();
 ctx.translate(mx, my);
@@ -250,11 +259,13 @@ ctx.restore();
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js 18+ or Bun
 - A webcam
 - Modern browser (Chrome, Edge, or Firefox recommended)
 
 ### Installation
+
 ```bash
 # Clone the repository
 git clone <repo-url>
@@ -270,6 +281,7 @@ npm run dev
 The app will be available at `http://localhost:8080`.
 
 ### Build for Production
+
 ```bash
 npm run build
 npm run preview
@@ -279,23 +291,23 @@ npm run preview
 
 ## 🎮 Supported Gestures
 
-| Gesture | Emoji | Default Action |
-|---------|-------|----------------|
-| Open Palm | 🖐️ | Erase drawing |
-| Fist | ✊ | Pause |
-| Pointing | 👆 | Select |
-| Thumbs Up | 👍 | Like / Approve |
-| Thumbs Down | 👎 | Dislike |
-| Peace | ✌️ | Next |
-| Rock | 🤘 | Play |
-| OK Sign | 👌 | Confirm |
-| Pinch | 🤏 | Zoom |
-| Swipe Left | 👈 | Next Slide |
-| Swipe Right | 👉 | Previous Slide |
-| Vulcan | 🖖 | Special Action |
+| Gesture     | Emoji | Default Action |
+| ----------- | ----- | -------------- |
+| Open Palm   | 🖐️    | Erase drawing  |
+| Fist        | ✊    | Pause          |
+| Pointing    | 👆    | Select         |
+| Thumbs Up   | 👍    | Like / Approve |
+| Thumbs Down | 👎    | Dislike        |
+| Peace       | ✌️    | Next           |
+| Rock        | 🤘    | Play           |
+| OK Sign     | 👌    | Confirm        |
+| Pinch       | 🤏    | Zoom           |
+| Swipe Left  | 👈    | Next Slide     |
+| Swipe Right | 👉    | Previous Slide |
+| Vulcan      | 🖖    | Special Action |
 
 ---
 
 ## 📄 License
 
-This project is open source. Built with [Lovable](https://lovable.dev).
+This project is open source. Developed By Aniket Tegginamath using lovable and codex
