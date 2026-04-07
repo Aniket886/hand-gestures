@@ -5,10 +5,10 @@ import { useGestureMappings, type PresentationAction } from "@/hooks/useGestureM
 import GestureHUD from "@/components/GestureHUD";
 import DemoPresentation from "@/components/DemoPresentation";
 import GestureLegend from "@/components/GestureLegend";
-import FeedbackControls from "@/components/FeedbackControls";
+import FeatureToggles, { type FeatureFlags } from "@/components/FeatureToggles";
 import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
-import { triggerGestureFeedback, resumeAudioContext, type FeedbackSettings } from "@/lib/feedback";
+import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings } from "lucide-react";
 
@@ -18,14 +18,17 @@ const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings>({
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
+    airWriting: true,
+    gestureNavigation: true,
+    handOverlay: true,
     soundEnabled: true,
     hapticEnabled: true,
     voiceEnabled: true,
   });
-  const feedbackSettingsRef = useRef(feedbackSettings);
-  feedbackSettingsRef.current = feedbackSettings;
+  const featureFlagsRef = useRef(featureFlags);
+  featureFlagsRef.current = featureFlags;
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const {
     mappings,
@@ -59,20 +62,31 @@ const Index = () => {
   }, []);
 
   const handleGestureAction = useCallback((gesture: GestureType) => {
+    const ff = featureFlagsRef.current;
     const mapping = mappings.find((m) => m.gesture === gesture);
     const label = mapping?.label || gesture;
-    triggerGestureFeedback(gesture, label, feedbackSettingsRef.current);
+    triggerGestureFeedback(gesture, label, {
+      soundEnabled: ff.soundEnabled,
+      hapticEnabled: ff.hapticEnabled,
+      voiceEnabled: ff.voiceEnabled,
+    });
 
-    const action = getActionRef.current(gesture);
-    if (action !== "none") {
-      executeAction(action);
+    if (ff.gestureNavigation) {
+      const action = getActionRef.current(gesture);
+      if (action !== "none") {
+        executeAction(action);
+      }
     }
   }, [mappings, executeAction]);
+
+  const handOverlayRef = useRef(true);
+  handOverlayRef.current = featureFlags.handOverlay;
 
   const { isActive, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
-    handleGestureAction
+    handleGestureAction,
+    handOverlayRef
   );
 
   const handleStart = useCallback(() => {
@@ -172,7 +186,7 @@ const Index = () => {
               <GestureLegend activeGesture={gesture?.gesture ?? null} mappings={mappings} />
             </div>
 
-            <FeedbackControls settings={feedbackSettings} onChange={setFeedbackSettings} />
+            <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} />
           </div>
 
           {/* Presentation area with air-writing overlay */}
@@ -186,7 +200,7 @@ const Index = () => {
               <DemoPresentation currentSlide={currentSlide} totalSlides={TOTAL_SLIDES} />
 
               {/* Air-writing canvas overlaid on presentation */}
-              {isActive && (
+              {isActive && featureFlags.airWriting && (
                 <div className="absolute inset-0 z-30">
                   <AirWritingCanvas
                     writingTip={writingTip}

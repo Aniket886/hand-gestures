@@ -67,7 +67,8 @@ function isWritingPose(landmarks: any[]): boolean {
 export function useHandTracking(
   videoRef: React.RefObject<HTMLVideoElement>,
   canvasRef: React.RefObject<HTMLCanvasElement>,
-  onGestureAction?: (gesture: GestureType) => void
+  onGestureAction?: (gesture: GestureType) => void,
+  drawOverlayRef?: React.MutableRefObject<boolean>
 ) {
   const [state, setState] = useState<HandTrackingState>({
     isLoading: true,
@@ -135,37 +136,41 @@ export function useHandTracking(
           const handedness = results.multiHandedness?.[h]?.label || (h === 0 ? "Right" : "Left");
           const colors = HAND_COLORS[handedness] || HAND_COLORS.Right;
 
-          // Draw connections
-          ctx.strokeStyle = colors.line;
-          ctx.lineWidth = 2;
-          ctx.shadowColor = colors.line;
-          ctx.shadowBlur = 8;
+          const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
 
-          for (const [i, j] of CONNECTIONS) {
-            const a = landmarks[i];
-            const b = landmarks[j];
-            ctx.beginPath();
-            ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
-            ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
-            ctx.stroke();
+          if (shouldDraw) {
+            // Draw connections
+            ctx.strokeStyle = colors.line;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = colors.line;
+            ctx.shadowBlur = 8;
+
+            for (const [i, j] of CONNECTIONS) {
+              const a = landmarks[i];
+              const b = landmarks[j];
+              ctx.beginPath();
+              ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
+              ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
+              ctx.stroke();
+            }
+
+            // Draw landmarks
+            for (let i = 0; i < landmarks.length; i++) {
+              const lm = landmarks[i];
+              const x = lm.x * canvas.width;
+              const y = lm.y * canvas.height;
+              const isTip = [4, 8, 12, 16, 20].includes(i);
+
+              ctx.beginPath();
+              ctx.arc(x, y, isTip ? 6 : 3, 0, 2 * Math.PI);
+              ctx.fillStyle = isTip ? colors.tip : colors.dot;
+              ctx.shadowColor = isTip ? colors.tip : colors.dot;
+              ctx.shadowBlur = isTip ? 15 : 8;
+              ctx.fill();
+            }
+
+            ctx.shadowBlur = 0;
           }
-
-          // Draw landmarks
-          for (let i = 0; i < landmarks.length; i++) {
-            const lm = landmarks[i];
-            const x = lm.x * canvas.width;
-            const y = lm.y * canvas.height;
-            const isTip = [4, 8, 12, 16, 20].includes(i);
-
-            ctx.beginPath();
-            ctx.arc(x, y, isTip ? 6 : 3, 0, 2 * Math.PI);
-            ctx.fillStyle = isTip ? colors.tip : colors.dot;
-            ctx.shadowColor = isTip ? colors.tip : colors.dot;
-            ctx.shadowBlur = isTip ? 15 : 8;
-            ctx.fill();
-          }
-
-          ctx.shadowBlur = 0;
 
           // Classify gesture for this hand
           const gesture = classifyGesture(landmarks as any);
