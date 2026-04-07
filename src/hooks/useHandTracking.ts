@@ -357,6 +357,7 @@ export function useHandTracking(
           hands: handsData,
           writingTip: isWriting ? writingTip : null,
           isWriting,
+          stringMeasurements: measurements,
         }));
 
         if (finalGesture && finalGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
