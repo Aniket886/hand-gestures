@@ -72,8 +72,9 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
 
     // Draw cursor if writing
     if (writingTip && isWriting) {
+      const cursorX = (1 - writingTip.x) * canvas.width;
       ctx.beginPath();
-      ctx.arc(writingTip.x * canvas.width, writingTip.y * canvas.height, strokeWidth + 4, 0, 2 * Math.PI);
+      ctx.arc(cursorX, writingTip.y * canvas.height, strokeWidth + 4, 0, 2 * Math.PI);
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
       ctx.shadowColor = color;
@@ -88,10 +89,12 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
     if (!isActive) return;
 
     if (isWriting && writingTip) {
+      // Mirror x to match the flipped video feed
+      const mirroredX = 1 - writingTip.x;
       if (!wasWritingRef.current) {
         // Start new stroke
         currentStrokeRef.current = {
-          points: [{ x: writingTip.x, y: writingTip.y }],
+          points: [{ x: mirroredX, y: writingTip.y }],
           color,
           width: strokeWidth,
         };
@@ -99,10 +102,10 @@ const AirWritingCanvas = ({ writingTip, isWriting, isActive }: AirWritingCanvasP
         // Continue stroke — only add point if distance is meaningful
         const pts = currentStrokeRef.current.points;
         const last = pts[pts.length - 1];
-        const dx = writingTip.x - last.x;
+        const dx = mirroredX - last.x;
         const dy = writingTip.y - last.y;
         if (Math.sqrt(dx * dx + dy * dy) > 0.003) {
-          currentStrokeRef.current.points.push({ x: writingTip.x, y: writingTip.y });
+          currentStrokeRef.current.points.push({ x: mirroredX, y: writingTip.y });
         }
       }
       wasWritingRef.current = true;
