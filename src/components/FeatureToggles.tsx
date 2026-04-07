@@ -1,10 +1,11 @@
-import { PenTool, Navigation, Volume2, VolumeX, Mic, MicOff, Smartphone, Eye, EyeOff, Smile } from "lucide-react";
+import { PenTool, Navigation, Volume2, VolumeX, Mic, MicOff, Smartphone, Eye, EyeOff, Smile, Cable } from "lucide-react";
 
 export interface FeatureFlags {
   airWriting: boolean;
   gestureNavigation: boolean;
   handOverlay: boolean;
   faceEmotion: boolean;
+  fingerString: boolean;
   soundEnabled: boolean;
   hapticEnabled: boolean;
   voiceEnabled: boolean;
@@ -26,6 +27,7 @@ const TOGGLES: {
   { key: "airWriting", label: "Drawing", iconOn: PenTool, iconOff: PenTool, group: "features" },
   { key: "handOverlay", label: "Skeleton", iconOn: Eye, iconOff: EyeOff, group: "features" },
   { key: "faceEmotion", label: "Emotion", iconOn: Smile, iconOff: Smile, group: "features" },
+  { key: "fingerString", label: "Strings", iconOn: Cable, iconOff: Cable, group: "features" },
   { key: "soundEnabled", label: "Sound", iconOn: Volume2, iconOff: VolumeX, group: "feedback" },
   { key: "hapticEnabled", label: "Haptic", iconOn: Smartphone, iconOff: Smartphone, group: "feedback" },
   { key: "voiceEnabled", label: "Voice", iconOn: Mic, iconOff: MicOff, group: "feedback" },
