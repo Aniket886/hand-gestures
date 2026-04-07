@@ -15,7 +15,7 @@ import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
-import { Camera, CameraOff, Hand, Settings, Presentation } from "lucide-react";
+import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2 } from "lucide-react";
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -132,6 +132,13 @@ const Index = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              to="/play"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
+            >
+              <Gamepad2 className="w-4 h-4" />
+              Play
+            </Link>
             <Link
               to="/present"
               className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
