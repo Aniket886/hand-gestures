@@ -264,19 +264,31 @@ export function useHandTracking(
           }
         }
 
-        // Draw finger strings
+        // Draw finger strings with distance measurement
         const shouldDrawStrings = drawStringRef ? drawStringRef.current : false;
+        const measurements: StringMeasurement[] = [];
         if (shouldDrawStrings) {
-          const allTips: { x: number; y: number }[] = [];
+          const allTips: { x: number; y: number; idx: number }[] = [];
           const fingerChecks: [number, number][] = [[4, 3], [8, 6], [12, 10], [16, 14], [20, 18]];
           for (const hand of handsData) {
             for (const [tip, pip] of fingerChecks) {
               if (isFingerUp(hand.landmarks, tip, pip, 0)) {
                 const lm = hand.landmarks[tip];
-                allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height });
+                allTips.push({ x: lm.x * canvas.width, y: lm.y * canvas.height, idx: tip });
               }
             }
           }
+
+          // Calibration: wrist(0) to middle MCP(9) ≈ 8.5 cm
+          const refHand = handsData[0].landmarks;
+          const wrist = refHand[0];
+          const mcp9 = refHand[9];
+          const refPx = Math.sqrt(
+            ((wrist.x - mcp9.x) * canvas.width) ** 2 +
+            ((wrist.y - mcp9.y) * canvas.height) ** 2
+          );
+          const cmPerPx = refPx > 0 ? 8.5 / refPx : 0;
+
           if (allTips.length >= 2) {
             ctx.lineWidth = 2;
             ctx.shadowBlur = 12;
@@ -291,6 +303,35 @@ export function useHandTracking(
                 ctx.moveTo(allTips[i].x, allTips[i].y);
                 ctx.lineTo(allTips[j].x, allTips[j].y);
                 ctx.stroke();
+
+                // Distance label
+                const dx = allTips[j].x - allTips[i].x;
+                const dy = allTips[j].y - allTips[i].y;
+                const pxDist = Math.sqrt(dx * dx + dy * dy);
+                const cmDist = +(pxDist * cmPerPx).toFixed(1);
+                const mx = (allTips[i].x + allTips[j].x) / 2;
+                const my = (allTips[i].y + allTips[j].y) / 2;
+
+                measurements.push({ from: allTips[i].idx, to: allTips[j].idx, cm: cmDist });
+
+                // Draw pill background
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+                const label = `${cmDist} cm`;
+                ctx.font = "bold 13px sans-serif";
+                const tw = ctx.measureText(label).width;
+                const pw = tw + 12;
+                const ph = 20;
+                ctx.fillStyle = "rgba(0,0,0,0.7)";
+                ctx.beginPath();
+                ctx.roundRect(mx - pw / 2, my - ph / 2, pw, ph, 6);
+                ctx.fill();
+
+                // Draw text
+                ctx.fillStyle = "#fff";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(label, mx, my);
               }
             }
             ctx.globalAlpha = 1;
