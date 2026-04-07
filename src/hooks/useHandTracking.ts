@@ -311,6 +311,7 @@ export function useHandTracking(
                 ctx.stroke();
 
                 // Distance label
+                const shouldMeasure = drawMeasureRef ? drawMeasureRef.current : true;
                 const dx = allTips[j].x - allTips[i].x;
                 const dy = allTips[j].y - allTips[i].y;
                 const pxDist = Math.sqrt(dx * dx + dy * dy);
@@ -320,24 +321,26 @@ export function useHandTracking(
 
                 measurements.push({ from: allTips[i].idx, to: allTips[j].idx, cm: cmDist });
 
-                // Draw pill background
-                ctx.globalAlpha = 1;
-                ctx.shadowBlur = 0;
-                const label = `${cmDist} cm`;
-                ctx.font = "bold 13px sans-serif";
-                const tw = ctx.measureText(label).width;
-                const pw = tw + 12;
-                const ph = 20;
-                ctx.fillStyle = "rgba(0,0,0,0.7)";
-                ctx.beginPath();
-                ctx.roundRect(mx - pw / 2, my - ph / 2, pw, ph, 6);
-                ctx.fill();
+                if (shouldMeasure) {
+                  // Draw pill background
+                  ctx.globalAlpha = 1;
+                  ctx.shadowBlur = 0;
+                  const label = `${cmDist} cm`;
+                  ctx.font = "bold 13px sans-serif";
+                  const tw = ctx.measureText(label).width;
+                  const pw = tw + 12;
+                  const ph = 20;
+                  ctx.fillStyle = "rgba(0,0,0,0.7)";
+                  ctx.beginPath();
+                  ctx.roundRect(mx - pw / 2, my - ph / 2, pw, ph, 6);
+                  ctx.fill();
 
-                // Draw text
-                ctx.fillStyle = "#fff";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(label, mx, my);
+                  // Draw text
+                  ctx.fillStyle = "#fff";
+                  ctx.textAlign = "center";
+                  ctx.textBaseline = "middle";
+                  ctx.fillText(label, mx, my);
+                }
               }
             }
             ctx.globalAlpha = 1;
