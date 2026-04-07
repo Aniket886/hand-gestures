@@ -212,6 +212,11 @@ const Index = () => {
               <p className="font-mono text-sm text-muted-foreground text-center px-4">
                 Click "Start Camera" to begin tracking
               </p>
+              {cameraError && (
+                <p className="font-mono text-xs text-destructive text-center px-6 mt-2 max-w-md">
+                  ⚠️ {cameraError}
+                </p>
+              )}
             </div>
           )}
 

@@ -338,7 +338,7 @@ export function useHandTracking(
   const stop = useCallback(() => {
     cleanup();
     setState({
-      isLoading: false, isActive: false, gesture: null, landmarks: null,
+      isLoading: false, isActive: false, error: null, gesture: null, landmarks: null,
       hands: [], fps: 0, writingTip: null, isWriting: false,
     });
   }, [cleanup]);
