@@ -24,7 +24,7 @@ const PlayCanvas = () => {
   const [gameMode, setGameMode] = useState<GameMode>("bubble");
   const [score, setScore] = useState(0);
 
-  const { isActive, gesture, fps, hands, writingTip, start, stop } = useHandTracking(
+  const { isActive, trackingReady, error: trackingError, gesture, fps, hands, writingTip, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     undefined,
@@ -78,9 +78,19 @@ const PlayCanvas = () => {
             </div>
 
             {/* FPS */}
-            {isActive && (
+            {isActive && trackingReady && (
               <div className="font-mono text-[10px] text-muted-foreground">
                 {fps} FPS
+              </div>
+            )}
+            {isActive && !trackingReady && (
+              <div className="font-mono text-[10px] text-accent">
+                Loading model…
+              </div>
+            )}
+            {isActive && trackingError && (
+              <div className="font-mono text-[10px] text-destructive max-w-[200px] truncate">
+                ⚠️ {trackingError}
               </div>
             )}
 

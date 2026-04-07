@@ -78,7 +78,7 @@ const Index = () => {
   const drawStringRef = useRef(true);
   drawStringRef.current = featureFlags.fingerString;
 
-  const { isActive, isLoading, error: cameraError, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
+  const { isActive, isLoading, trackingReady, error: cameraError, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction,
@@ -233,9 +233,22 @@ const Index = () => {
             </div>
           )}
 
-          {isActive && (
+          {isActive && !trackingReady && !isLoading && (
+            <div className="absolute top-3 left-3 font-mono text-xs text-accent bg-card/70 backdrop-blur-sm px-3 py-1.5 rounded-lg flex items-center gap-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Loading hand model…
+            </div>
+          )}
+
+          {isActive && trackingReady && (
             <div className="absolute top-3 left-3 font-mono text-xs text-muted-foreground bg-card/70 backdrop-blur-sm px-3 py-1.5 rounded-lg">
               {fps} FPS • {hands.length} hand{hands.length !== 1 ? "s" : ""}
+            </div>
+          )}
+
+          {isActive && cameraError && (
+            <div className="absolute top-3 right-3 font-mono text-[10px] text-destructive bg-card/80 backdrop-blur-sm px-3 py-1.5 rounded-lg max-w-xs">
+              ⚠️ {cameraError}
             </div>
           )}
 
