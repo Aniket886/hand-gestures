@@ -144,6 +144,13 @@ const Index = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              to="/present"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
+            >
+              <Presentation className="w-4 h-4" />
+              Present
+            </Link>
             <button
               onClick={() => setSettingsOpen(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
