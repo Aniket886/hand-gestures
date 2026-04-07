@@ -18,14 +18,16 @@ const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings>({
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
+    airWriting: true,
+    gestureNavigation: true,
+    handOverlay: true,
     soundEnabled: true,
     hapticEnabled: true,
     voiceEnabled: true,
   });
-  const feedbackSettingsRef = useRef(feedbackSettings);
-  feedbackSettingsRef.current = feedbackSettings;
+  const featureFlagsRef = useRef(featureFlags);
+  featureFlagsRef.current = featureFlags;
 
   const {
     mappings,
