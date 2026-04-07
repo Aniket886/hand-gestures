@@ -24,6 +24,7 @@ const Index = () => {
     airWriting: true,
     gestureNavigation: true,
     handOverlay: true,
+    faceEmotion: true,
     soundEnabled: true,
     hapticEnabled: true,
     voiceEnabled: true,
