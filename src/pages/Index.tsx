@@ -92,6 +92,20 @@ const Index = () => {
     handOverlayRef
   );
 
+  const { emotion, isLoading: emotionLoading, startDetection, stopDetection } = useFaceEmotion(
+    videoRef as React.RefObject<HTMLVideoElement>,
+    featureFlags.faceEmotion
+  );
+
+  // Start/stop face emotion detection when camera or toggle changes
+  useEffect(() => {
+    if (isActive && featureFlags.faceEmotion) {
+      startDetection();
+    } else {
+      stopDetection();
+    }
+  }, [isActive, featureFlags.faceEmotion, startDetection, stopDetection]);
+
   const handleStart = useCallback(() => {
     resumeAudioContext();
     start();
