@@ -207,7 +207,7 @@ const Index = () => {
             </div>
           )}
 
-          {!isActive && (
+          {!isActive && !isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90">
               <Camera className="w-16 h-16 text-muted-foreground mb-3" />
               <p className="font-mono text-sm text-muted-foreground text-center px-4">
@@ -218,6 +218,18 @@ const Index = () => {
                   ⚠️ {cameraError}
                 </p>
               )}
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 z-40">
+              <Loader2 className="w-12 h-12 text-primary animate-spin mb-3" />
+              <p className="font-mono text-sm text-primary text-center">
+                Initializing hand tracking model…
+              </p>
+              <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                Loading MediaPipe WASM
+              </p>
             </div>
           )}
 
