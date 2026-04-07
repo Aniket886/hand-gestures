@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useHandTracking } from "@/hooks/useHandTracking";
 import { useFaceEmotion } from "@/hooks/useFaceEmotion";
@@ -14,7 +15,7 @@ import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
-import { Camera, CameraOff, Hand, Settings } from "lucide-react";
+import { Camera, CameraOff, Hand, Settings, Presentation } from "lucide-react";
 
 const TOTAL_SLIDES = 4;
 
@@ -143,6 +144,13 @@ const Index = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              to="/present"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
+            >
+              <Presentation className="w-4 h-4" />
+              Present
+            </Link>
             <button
               onClick={() => setSettingsOpen(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
