@@ -53,6 +53,10 @@ const Index = () => {
 
   const handleGestureAction = useCallback((gesture: GestureType) => {
     const ff = featureFlagsRef.current;
+
+    // Skip all feedback if none are enabled
+    if (!ff.soundEnabled && !ff.hapticEnabled && !ff.voiceEnabled && !ff.gestureNavigation) return;
+
     const mapping = mappings.find((m) => m.gesture === gesture);
     const label = mapping?.label || gesture;
     triggerGestureFeedback(gesture, label, {
