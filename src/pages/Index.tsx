@@ -97,14 +97,24 @@ const Index = () => {
     featureFlags.faceEmotion
   );
 
+  const { engagement, updateEngagement, resetEngagement } = useEngagementScore();
+
   // Start/stop face emotion detection when camera or toggle changes
   useEffect(() => {
     if (isActive && featureFlags.faceEmotion) {
       startDetection();
     } else {
       stopDetection();
+      resetEngagement();
     }
-  }, [isActive, featureFlags.faceEmotion, startDetection, stopDetection]);
+  }, [isActive, featureFlags.faceEmotion, startDetection, stopDetection, resetEngagement]);
+
+  // Feed emotion data into engagement score
+  useEffect(() => {
+    if (emotion && featureFlags.faceEmotion) {
+      updateEngagement(emotion);
+    }
+  }, [emotion, featureFlags.faceEmotion, updateEngagement]);
 
   const handleStart = useCallback(() => {
     resumeAudioContext();
