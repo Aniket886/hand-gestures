@@ -148,19 +148,22 @@ export function useHandTracking(
     setState((s) => ({ ...s, isLoading: false, isActive: true }));
   }, [videoRef, canvasRef]);
 
-  const stop = useCallback(() => {
-    cameraRef.current?.stop();
-    handsRef.current?.close();
+  const cleanup = useCallback(() => {
+    try { cameraRef.current?.stop(); } catch (_) {}
+    cameraRef.current = null;
+    try { handsRef.current?.close(); } catch (_) {}
+    handsRef.current = null;
     resetSwipeHistory();
-    setState({ isLoading: false, isActive: false, gesture: null, landmarks: null, fps: 0 });
   }, []);
 
+  const stop = useCallback(() => {
+    cleanup();
+    setState({ isLoading: false, isActive: false, gesture: null, landmarks: null, fps: 0 });
+  }, [cleanup]);
+
   useEffect(() => {
-    return () => {
-      cameraRef.current?.stop();
-      handsRef.current?.close();
-    };
-  }, []);
+    return () => { cleanup(); };
+  }, [cleanup]);
 
   return { ...state, start, stop };
 }
