@@ -104,8 +104,8 @@ async function createAndInitHands(
   useCpu: boolean,
   timeoutMs: number
 ): Promise<Hands> {
-  const HandsConstructor = (handsModule as any).Hands || (handsModule as any).default?.Hands;
-  if (!HandsConstructor) throw new Error("MediaPipe Hands constructor not found");
+  const HandsConstructor = await loadHandsRuntime();
+  const hands = new HandsConstructor({ locateFile });
   const hands = new HandsConstructor({ locateFile });
 
   const options: any = {
