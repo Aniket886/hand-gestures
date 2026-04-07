@@ -10,6 +10,17 @@ const GESTURE_SOUNDS: Record<string, FeedbackType> = {
   thumbs_up: "positive",
   thumbs_down: "negative",
   swipe_left: "navigate",
+  rock: "positive",
+  love_you: "positive",
+  call_me: "confirm",
+  gun: "navigate",
+  ok_sign: "confirm",
+  pinch: "confirm",
+  three: "confirm",
+  four: "confirm",
+  vulcan: "positive",
+  middle_finger: "negative",
+  pinky_up: "positive",
   swipe_right: "navigate",
 };
 
