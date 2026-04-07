@@ -4,7 +4,9 @@ import { useHandTracking } from "@/hooks/useHandTracking";
 import GestureHUD from "@/components/GestureHUD";
 import DemoPresentation from "@/components/DemoPresentation";
 import GestureLegend from "@/components/GestureLegend";
-import type { GestureType } from "@/lib/gestures";
+import FeedbackControls from "@/components/FeedbackControls";
+import { triggerGestureFeedback, resumeAudioContext, type FeedbackSettings } from "@/lib/feedback";
+import { GESTURE_MAP, type GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand } from "lucide-react";
 
 const TOTAL_SLIDES = 4;
@@ -13,8 +15,20 @@ const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings>({
+    soundEnabled: true,
+    hapticEnabled: true,
+    voiceEnabled: true,
+  });
+  const feedbackSettingsRef = useRef(feedbackSettings);
+  feedbackSettingsRef.current = feedbackSettings;
 
   const handleGestureAction = useCallback((gesture: GestureType) => {
+    const info = GESTURE_MAP[gesture];
+    if (info) {
+      triggerGestureFeedback(gesture, info.label, feedbackSettingsRef.current);
+    }
+
     if (gesture === "pointing" || gesture === "swipe_left") {
       setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1));
     } else if (gesture === "peace" || gesture === "swipe_right") {
@@ -27,6 +41,11 @@ const Index = () => {
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction
   );
+
+  const handleStart = useCallback(() => {
+    resumeAudioContext();
+    start();
+  }, [start]);
 
   return (
     <div className="min-h-screen bg-background grid-bg scanline">
@@ -48,7 +67,7 @@ const Index = () => {
           </div>
 
           <button
-            onClick={isActive ? stop : start}
+            onClick={isActive ? stop : handleStart}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-medium transition-all duration-300 ${
               isActive
                 ? "bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20"
@@ -103,6 +122,9 @@ const Index = () => {
             <div className="mt-4">
               <GestureLegend activeGesture={gesture?.gesture ?? null} />
             </div>
+
+            {/* Feedback controls */}
+            <FeedbackControls settings={feedbackSettings} onChange={setFeedbackSettings} />
           </div>
 
           {/* Presentation area */}
