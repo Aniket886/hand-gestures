@@ -49,6 +49,7 @@ Key files:
 - Arc is now app-scoped via `src/contexts/ArcContext.tsx` instead of page-local.
 - Arc now writes centralized debug logs via `src/lib/arcLogger.ts`.
 - Wake phrase: "Arc" with aliases (arc/ark/are).
+- Arc speech recognition is now tuned to `en-IN` for better Indian English capture.
 - Wake window: saying "Arc" arms assistant for ~8s; next phrase can omit "Arc".
 - Commands supported: start/stop tracking, next/prev slide, capture calibration, open presentation/playground/home, help.
 - Freeform questions after wake are sent to Groq and spoken back.
@@ -66,6 +67,8 @@ Key files:
 - Fatal recognition errors remain permission/device only (`not-allowed`, `service-not-allowed`, `audio-capture`).
 - Arc restart behavior now uses a short backoff on `onend` when still enabled and not speaking.
 - Question routing is broader and should answer natural prompts like `which ...`, `can you ...`, `do you know ...`.
+- Question routing now also explicitly covers phrases like `scientific name`, `full form`, `meaning of`, and even misheard variants such as `nickname of` so Groq answers instead of the command fallback.
+- Post-command and post-query state reset is now explicit, so the next interaction should not inherit stale wake/query state.
 
 Key files:
 - `src/contexts/ArcContext.tsx`
