@@ -47,6 +47,7 @@ Key files:
 
 ### 4) Arc voice assistant (wake word + commands + Groq answers)
 - Arc is now app-scoped via `src/contexts/ArcContext.tsx` instead of page-local.
+- Arc now writes centralized debug logs via `src/lib/arcLogger.ts`.
 - Wake phrase: "Arc" with aliases (arc/ark/are).
 - Wake window: saying "Arc" arms assistant for ~8s; next phrase can omit "Arc".
 - Commands supported: start/stop tracking, next/prev slide, capture calibration, open presentation/playground/home, help.
@@ -68,6 +69,9 @@ Key files:
   - Registers page-specific handlers for home/presentation actions
   - Pauses speech recognition while TTS is speaking, then resumes
   - Resets armed/transcript state after commands and queries
+- `src/lib/arcLogger.ts`
+  - Records `{ state, transcript, action, timestamp, detail }`
+  - Exposes logs on `window.__arcLogs` for quick debugging in DevTools
 - `src/hooks/useVoiceCommandAssistant.ts`
   - Now mainly provides transcript/intent parsing helpers used by ArcContext
 - `src/components/VoiceAssistantPanel.tsx` (detailed status panel shown inside Tools modal)

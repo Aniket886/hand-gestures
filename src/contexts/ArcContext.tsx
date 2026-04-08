@@ -16,6 +16,7 @@ import {
   parseVoiceCommand,
   type VoiceCommand,
 } from "@/hooks/useVoiceCommandAssistant";
+import { logArcEvent } from "@/lib/arcLogger";
 
 type ArcStatus = "idle" | "listening" | "armed" | "executing_command" | "querying" | "speaking" | "error";
 
@@ -140,6 +141,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
   const lastCommandRef = useRef<{ id: VoiceCommand["id"]; at: number } | null>(null);
 
   const clearInteractionState = useCallback(() => {
+    logArcEvent({ state: "reset", action: "clear_interaction_state" });
     armedUntilRef.current = 0;
     pendingCommandRef.current = null;
     lastProcessedFinalRef.current = "";
@@ -166,15 +168,18 @@ export function ArcProvider({ children }: { children: ReactNode }) {
     try {
       isStartingRef.current = true;
       userStoppedRef.current = false;
+      logArcEvent({ state: "listening", action: "start_recognition" });
       recognitionRef.current.start();
     } catch {
       isStartingRef.current = false;
+      logArcEvent({ state: "error", action: "start_recognition_failed" });
     }
   }, []);
 
   const stopRecognition = useCallback(() => {
     if (!recognitionRef.current) return;
     try {
+      logArcEvent({ state: "idle", action: "stop_recognition" });
       recognitionRef.current.stop();
     } catch {
       // no-op
@@ -190,6 +195,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       }
 
       setStatus("speaking");
+      logArcEvent({ state: "speaking", action: "speak_start", detail: message });
       lastSpokenTextRef.current = normalizeTranscript(message);
       pauseForSpeechRef.current = true;
       stopRecognition();
@@ -208,6 +214,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       pauseForSpeechRef.current = false;
       speechEndCleanupRef.current?.();
       speechEndCleanupRef.current = null;
+      logArcEvent({ state: "speaking", action: "speak_end", detail: message });
       if (isEnabledRef.current && !errorRef.current) startRecognition();
       syncStatusFromState();
     },
@@ -239,6 +246,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
 
   async function runCommand(command: VoiceCommand) {
     setStatus("executing_command");
+    logArcEvent({ state: "executing_command", action: command.id, transcript: command.text });
     clearInteractionState();
 
     if (command.id === "start_tracking") {
@@ -330,6 +338,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
   const answerQuery = useCallback(
     async (prompt: string) => {
       setStatus("querying");
+      logArcEvent({ state: "querying", action: "query_start", transcript: prompt });
       clearInteractionState();
 
       try {
@@ -340,9 +349,11 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         });
         const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
         const reply = res.ok ? (data?.text || "No answer.").trim() : data?.error ? `Error: ${data.error}` : "Unable to answer right now.";
+        logArcEvent({ state: "querying", action: "query_success", transcript: prompt, detail: reply });
         speechEndCleanupRef.current = syncStatusFromState;
         await speakAndResume(reply);
       } catch {
+        logArcEvent({ state: "error", action: "query_failed", transcript: prompt });
         speechEndCleanupRef.current = syncStatusFromState;
         await speakAndResume("Network error. Unable to reach Arc server.");
       }
@@ -371,6 +382,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       isStartingRef.current = false;
       setIsListening(true);
       setError(null);
+      logArcEvent({ state: "listening", action: "recognition_started" });
       syncStatusFromState();
       setLastResponse((current) => (current === "Idle" ? 'Listening for "Arc"...' : current));
     };
@@ -381,6 +393,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       const { transcript, normalized, sawFinal } = collectTranscriptWindow(event);
       if (!transcript) return;
       setLastHeard(transcript);
+      logArcEvent({ state: status, action: "transcript", transcript });
 
       const now = Date.now();
       const wake = findWakeWord(normalized, WAKE_WORDS);
@@ -393,6 +406,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       if (wake.hasWake && !wake.afterWake) {
         armedUntilRef.current = now + WAKE_WINDOW_MS;
         setStatus("armed");
+        logArcEvent({ state: "armed", action: "wake_detected", transcript });
         if (sawFinal && now - lastWakeAckAtRef.current > 1200) {
           lastWakeAckAtRef.current = now;
           speechEndCleanupRef.current = () => {
@@ -414,6 +428,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       if (command) {
         const lastCommand = lastCommandRef.current;
         if (lastCommand && lastCommand.id === command.id && now - lastCommand.at <= COMMAND_DEBOUNCE_MS) {
+          logArcEvent({ state: "armed", action: "command_debounced", transcript: actionable, detail: command.id });
           clearInteractionState();
           syncStatusFromState();
           return;
@@ -424,10 +439,12 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       }
 
       if (isQuestionLike(actionable)) {
+        logArcEvent({ state: "armed", action: "question_detected", transcript: actionable });
         void answerQueryRef.current?.(actionable);
         return;
       }
 
+      logArcEvent({ state: "armed", action: "unknown_input", transcript: actionable });
       clearInteractionState();
       speechEndCleanupRef.current = syncStatusFromState;
       void speakAndResume('Try "Arc start tracking", "Arc stop tracking", or "Arc help".');
@@ -436,6 +453,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
       const code = event?.error || "unknown";
       if (code === "aborted") return;
+      logArcEvent({ state: "error", action: "recognition_error", detail: code });
 
       if (isFatalRecognitionError(code)) {
         userStoppedRef.current = true;
@@ -457,6 +475,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
     recognition.onend = () => {
       isStartingRef.current = false;
       setIsListening(false);
+      logArcEvent({ state: "idle", action: "recognition_ended" });
       if (!userStoppedRef.current && !pauseForSpeechRef.current && !errorRef.current && isEnabledRef.current) {
         startRecognition();
       }
@@ -529,10 +548,12 @@ export function ArcProvider({ children }: { children: ReactNode }) {
     setIsEnabled(true);
     setStatus("listening");
     setLastResponse('Listening for "Arc"...');
+    logArcEvent({ state: "listening", action: "arc_enabled" });
   }, []);
 
   const disableArc = useCallback(() => {
     setIsEnabled(false);
+    logArcEvent({ state: "idle", action: "arc_disabled" });
   }, []);
 
   const resetArc = useCallback(() => {
