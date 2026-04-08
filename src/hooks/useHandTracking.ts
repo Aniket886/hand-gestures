@@ -77,14 +77,31 @@ export interface HandTrackingCalibrationState {
   effectiveDistanceFactor: number;
 }
 
-const CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],
-  [0,5],[5,6],[6,7],[7,8],
-  [0,9],[9,10],[10,11],[11,12],
-  [0,13],[13,14],[14,15],[15,16],
-  [0,17],[17,18],[18,19],[19,20],
-  [5,9],[9,13],[13,17],
-];
+const FINGER_CONNECTIONS = [
+  [1, 2], [2, 3], [3, 4],
+  [5, 6], [6, 7], [7, 8],
+  [9, 10], [10, 11], [11, 12],
+  [13, 14], [14, 15], [15, 16],
+  [17, 18], [18, 19], [19, 20],
+] as const;
+
+const PALM_CONNECTIONS = [
+  [1, 5],
+  [5, 9],
+  [9, 13],
+  [13, 17],
+] as const;
+
+function getPalmBaseAnchor(landmarks: any[]) {
+  const wrist = landmarks[0];
+  const palmMidX = (landmarks[5].x + landmarks[17].x) / 2;
+  const palmMidY = (landmarks[5].y + landmarks[17].y) / 2;
+
+  return {
+    x: wrist.x + (wrist.x - palmMidX) * 0.18,
+    y: wrist.y + (wrist.y - palmMidY) * 0.22,
+  };
+}
 
 const HAND_COLORS: Record<string, { line: string; dot: string; tip: string }> = {
   Left: {
@@ -471,12 +488,13 @@ export function useHandTracking(
           const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
 
           if (shouldDraw) {
+            const palmBase = getPalmBaseAnchor(landmarks as any);
             ctx.strokeStyle = colors.line;
             ctx.lineWidth = 2;
             ctx.shadowColor = colors.line;
             ctx.shadowBlur = 8;
 
-            for (const [i, j] of CONNECTIONS) {
+            for (const [i, j] of FINGER_CONNECTIONS) {
               const a = landmarks[i];
               const b = landmarks[j];
               ctx.beginPath();
@@ -485,14 +503,34 @@ export function useHandTracking(
               ctx.stroke();
             }
 
+            for (const [i, j] of PALM_CONNECTIONS) {
+              const a = landmarks[i];
+              const b = landmarks[j];
+              ctx.beginPath();
+              ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
+              ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
+              ctx.stroke();
+            }
+
+            // Draw a tighter palm base instead of fanning all fingers out of one wrist point.
+            ctx.beginPath();
+            ctx.moveTo(palmBase.x * canvas.width, palmBase.y * canvas.height);
+            ctx.lineTo(landmarks[1].x * canvas.width, landmarks[1].y * canvas.height);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(palmBase.x * canvas.width, palmBase.y * canvas.height);
+            ctx.lineTo(landmarks[17].x * canvas.width, landmarks[17].y * canvas.height);
+            ctx.stroke();
+
             for (let i = 0; i < landmarks.length; i++) {
               const lm = landmarks[i];
-              const x = lm.x * canvas.width;
-              const y = lm.y * canvas.height;
+              const x = (i === 0 ? palmBase.x : lm.x) * canvas.width;
+              const y = (i === 0 ? palmBase.y : lm.y) * canvas.height;
               const isTip = [4, 8, 12, 16, 20].includes(i);
 
               ctx.beginPath();
-              ctx.arc(x, y, isTip ? 6 : 3, 0, 2 * Math.PI);
+              ctx.arc(x, y, i === 0 ? 4 : isTip ? 6 : 3, 0, 2 * Math.PI);
               ctx.fillStyle = isTip ? colors.tip : colors.dot;
               ctx.shadowColor = isTip ? colors.tip : colors.dot;
               ctx.shadowBlur = isTip ? 15 : 8;
