@@ -73,6 +73,9 @@ describe("Voice Assistant helpers", () => {
   it("question cue gating", () => {
     expect(isQuestionLike("what is todays date")).toBe(true);
     expect(isQuestionLike("tell me about gestures")).toBe(true);
+    expect(isQuestionLike("which planet is largest")).toBe(true);
+    expect(isQuestionLike("can you explain jupiter")).toBe(true);
+    expect(isQuestionLike("do you know the answer")).toBe(true);
     expect(isQuestionLike("start tracking")).toBe(false);
     expect(isQuestionLike("random words")).toBe(false);
   });
