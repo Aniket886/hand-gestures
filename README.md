@@ -2,7 +2,7 @@
 
 A real-time hand gesture recognition web application built with **React**, **MediaPipe**, and **face-api.js**. Control presentations, draw in the air, play gesture-based games, and measure distances between your fingertips — all through your webcam.
 
-🔗 **Live Demo**: [hand-gestures.lovable.app](https://hand-gestures.lovable.app)
+🔗 **Live Demo**: [hand-gestures.app](https://hand-gestures-lovat.vercel.app)
 
 ## Contents
 
