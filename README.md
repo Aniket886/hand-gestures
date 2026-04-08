@@ -4,8 +4,20 @@ A real-time hand gesture recognition web application built with **React**, **Med
 
 🔗 **Live Demo**: [hand-gestures.lovable.app](https://hand-gestures.lovable.app)
 
+## Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Application Flow](#application-flow)
+- [Issues Encountered & Solutions](#issues-encountered--solutions)
+- [Getting Started](#getting-started)
+- [Supported Gestures](#supported-gestures)
+- [License](#license)
+
 ---
 
+<a id="features"></a>
 ## 📸 Features
 
 | Feature                           | Description                                                               |
@@ -25,6 +37,7 @@ A real-time hand gesture recognition web application built with **React**, **Med
 
 ---
 
+<a id="tech-stack"></a>
 ## 🛠 Tech Stack
 
 ### Frontend
@@ -63,7 +76,11 @@ A real-time hand gesture recognition web application built with **React**, **Med
 
 ---
 
+<a id="project-structure"></a>
 ## 📁 Project Structure
+
+<details>
+<summary>Source tree</summary>
 
 ```
 src/
@@ -98,11 +115,46 @@ src/
 └── main.tsx               # App entry point
 ```
 
+</details>
+
 ---
 
+<a id="application-flow"></a>
 ## 🔄 Application Flow
 
+```mermaid
+flowchart TD
+  A["User Opens App"] --> B["Click \"Start Camera\""]
+  B --> C["getUserMedia (webcam)\n→ Video feed starts"]
+  C --> D["Parallel Initialization"]
+
+  D --> E["MediaPipe Hands WASM (dynamic import)"]
+  D --> F["face-api.js Emotion Models (TinyFaceDetect)"]
+
+  E --> G["Hand Landmarks (21 per hand)"]
+  F --> H["Emotion Classification (7 emotions)"]
+
+  G --> I["Feature Pipeline"]
+  H --> I
+
+  I --> J["Action Dispatch"]
+  I --> K["Gesture Classification"]
+  I --> L["Swipe Detection"]
+  I --> M["Writing Pose Detection"]
+  I --> N["Finger String Drawing"]
+  I --> O["Distance Measurement"]
+  I --> P["Engagement Scoring"]
+
+  J --> Q["Sound/Haptic/Voice"]
+  J --> R["Slide Navigation"]
+  J --> S["Air Writing Strokes"]
+  J --> T["Game Interactions"]
 ```
+
+<details>
+<summary>ASCII flow (original)</summary>
+
+```text
 ┌─────────────────────────────────────────────────┐
 │                   User Opens App                 │
 └──────────────────────┬──────────────────────────┘
@@ -153,8 +205,11 @@ src/
     └──────────────────────────────┘
 ```
 
+</details>
+
 ---
 
+<a id="issues-encountered--solutions"></a>
 ## 🐛 Issues Encountered & Solutions
 
 ### 1. `k8.Hands is not a constructor` (Production Build)
@@ -256,6 +311,7 @@ ctx.restore();
 
 ---
 
+<a id="getting-started"></a>
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -289,6 +345,7 @@ npm run preview
 
 ---
 
+<a id="supported-gestures"></a>
 ## 🎮 Supported Gestures
 
 | Gesture     | Emoji | Default Action |
@@ -308,6 +365,7 @@ npm run preview
 
 ---
 
+<a id="license"></a>
 ## 📄 License
 
 This project is open source. Developed By Aniket Tegginamath using lovable and codex
