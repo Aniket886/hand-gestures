@@ -14,11 +14,13 @@ import FeatureToggles, { type FeatureFlags } from "@/components/FeatureToggles";
 import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
 import TrackingCalibrationPanel from "@/components/TrackingCalibrationPanel";
+import CustomGestureTrainer from "@/components/CustomGestureTrainer";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useTrackingPreferences } from "@/hooks/useTrackingPreferences";
+import { useCustomGestureProfiles } from "@/hooks/useCustomGestureProfiles";
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -39,6 +41,8 @@ const Index = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { settings: trackingSettings, updateSetting: updateTrackingSetting, resetSettings: resetTrackingSettings } =
     useTrackingPreferences();
+  const { profiles: customGestureProfiles, addProfile: addCustomGestureProfile, removeProfile: removeCustomGestureProfile } =
+    useCustomGestureProfiles();
 
   const {
     mappings,
@@ -47,6 +51,8 @@ const Index = () => {
     updateLabel,
     addCustomGesture,
     removeCustomGesture,
+    upsertCustomMapping,
+    removeMappingByGesture,
     resetToDefaults,
     getActionForGesture,
   } = useGestureMappings();
@@ -109,7 +115,8 @@ const Index = () => {
     handOverlayRef,
     drawStringRef,
     drawMeasureRef,
-    trackingSettings
+    trackingSettings,
+    customGestureProfiles
   );
 
   const { emotion, isLoading: emotionLoading, startDetection, stopDetection } = useFaceEmotion(
@@ -140,6 +147,24 @@ const Index = () => {
     resumeAudioContext();
     start();
   }, [start]);
+
+  const handleCreateCustomGesture = useCallback(
+    (label: string, emoji: string, samples: number[][]) => {
+      const created = addCustomGestureProfile(label, emoji, samples);
+      if (!created) return null;
+      upsertCustomMapping(created.id as GestureType, emoji, label, "none");
+      return created;
+    },
+    [addCustomGestureProfile, upsertCustomMapping]
+  );
+
+  const handleDeleteCustomGesture = useCallback(
+    (id: string) => {
+      removeCustomGestureProfile(id);
+      removeMappingByGesture(id as GestureType);
+    },
+    [removeCustomGestureProfile, removeMappingByGesture]
+  );
 
   return (
     <div className="min-h-screen bg-background grid-bg scanline">
@@ -309,6 +334,13 @@ const Index = () => {
               onResetSettings={resetTrackingSettings}
               onCaptureCalibration={captureCalibration}
               onClearCalibration={clearCalibration}
+            />
+            <CustomGestureTrainer
+              isActive={isActive}
+              hands={hands}
+              profiles={customGestureProfiles}
+              onCreateProfile={handleCreateCustomGesture}
+              onDeleteProfile={handleDeleteCustomGesture}
             />
             {featureFlags.faceEmotion && (
               <EngagementPanel data={engagement} isActive={isActive} />

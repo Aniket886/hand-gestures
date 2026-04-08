@@ -113,8 +113,27 @@ export function useGestureMappings() {
     return id;
   }, []);
 
+  const upsertCustomMapping = useCallback(
+    (gesture: GestureType, emoji: string, label: string, action: PresentationAction = "none") => {
+      setMappings((prev) => {
+        const existingIndex = prev.findIndex((item) => item.gesture === gesture);
+        if (existingIndex >= 0) {
+          const clone = [...prev];
+          clone[existingIndex] = { ...clone[existingIndex], emoji, label, action, isCustom: true };
+          return clone;
+        }
+        return [...prev, { gesture, emoji, label, action, isCustom: true }];
+      });
+    },
+    []
+  );
+
   const removeCustomGesture = useCallback((index: number) => {
     setMappings((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const removeMappingByGesture = useCallback((gesture: GestureType) => {
+    setMappings((prev) => prev.filter((mapping) => mapping.gesture !== gesture));
   }, []);
 
   const resetToDefaults = useCallback(() => {
@@ -135,7 +154,9 @@ export function useGestureMappings() {
     updateEmoji,
     updateLabel,
     addCustomGesture,
+    upsertCustomMapping,
     removeCustomGesture,
+    removeMappingByGesture,
     resetToDefaults,
     getActionForGesture,
   };
