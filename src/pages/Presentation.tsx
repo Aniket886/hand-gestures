@@ -111,6 +111,7 @@ const Presentation = () => {
 
       {/* Slide area */}
       <div
+        ref={slideAreaRef}
         className="flex-1 relative overflow-hidden group laser-cursor"
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
