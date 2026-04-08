@@ -31,50 +31,115 @@ export interface GestureResult {
 }
 
 export const GESTURE_MAP: Record<GestureType, { label: string; action: string; emoji: string }> = {
-  open_palm:    { label: "Open Palm",       action: "Pause / Stop",       emoji: "✋" },
-  fist:         { label: "Fist",            action: "Grab / Hold",        emoji: "✊" },
-  pointing:     { label: "Point Up",        action: "Next Slide →",       emoji: "☝️" },
-  thumbs_up:    { label: "Thumbs Up",       action: "Like / Approve",     emoji: "👍" },
-  thumbs_down:  { label: "Thumbs Down",     action: "Dislike",            emoji: "👎" },
-  peace:        { label: "Peace / Victory",  action: "Previous Slide ←",  emoji: "✌️" },
-  rock:         { label: "Rock On",         action: "Highlight",          emoji: "🤘" },
-  love_you:     { label: "Love You",        action: "React ❤️",           emoji: "🤟" },
-  call_me:      { label: "Call Me / Shaka", action: "Hang Loose",         emoji: "🤙" },
-  ok_sign:      { label: "OK Sign",         action: "Confirm",            emoji: "👌" },
-  pinch:        { label: "Pinch",           action: "Zoom",               emoji: "🤏" },
-  three:        { label: "Three",           action: "Option 3",           emoji: "🖖" },
-  four:         { label: "Four",            action: "Option 4",           emoji: "🖐️" },
-  middle_finger:{ label: "Middle Finger",   action: "—",                  emoji: "🖕" },
-  pinky_up:     { label: "Pinky Up",        action: "Fancy!",             emoji: "🤙" },
-  gun:          { label: "Finger Gun",      action: "Select / Shoot",     emoji: "👈" },
-  vulcan:       { label: "Vulcan Salute",   action: "Live Long 🖖",      emoji: "🖖" },
-  swipe_left:   { label: "Swipe Left",      action: "Next Slide →",       emoji: "👈" },
-  swipe_right:  { label: "Swipe Right",     action: "Previous Slide ←",   emoji: "👉" },
-  none:         { label: "No Gesture",      action: "—",                  emoji: "❓" },
+  open_palm: { label: "Open Palm", action: "Pause / Stop", emoji: "✋" },
+  fist: { label: "Fist", action: "Grab / Hold", emoji: "✊" },
+  pointing: { label: "Point Up", action: "Next Slide →", emoji: "☝️" },
+  thumbs_up: { label: "Thumbs Up", action: "Like / Approve", emoji: "👍" },
+  thumbs_down: { label: "Thumbs Down", action: "Dislike", emoji: "👎" },
+  peace: { label: "Peace / Victory", action: "Previous Slide ←", emoji: "✌️" },
+  rock: { label: "Rock On", action: "Highlight", emoji: "🤘" },
+  love_you: { label: "Love You", action: "React ❤️", emoji: "🤟" },
+  call_me: { label: "Call Me / Shaka", action: "Hang Loose", emoji: "🤙" },
+  ok_sign: { label: "OK Sign", action: "Confirm", emoji: "👌" },
+  pinch: { label: "Pinch", action: "Zoom", emoji: "🤏" },
+  three: { label: "Three", action: "Option 3", emoji: "🖖" },
+  four: { label: "Four", action: "Option 4", emoji: "🖐️" },
+  middle_finger: { label: "Middle Finger", action: "—", emoji: "🖕" },
+  pinky_up: { label: "Pinky Up", action: "Fancy!", emoji: "🤙" },
+  gun: { label: "Finger Gun", action: "Select / Shoot", emoji: "👉" },
+  vulcan: { label: "Vulcan Salute", action: "Live Long 🖖", emoji: "🖖" },
+  swipe_left: { label: "Swipe Left", action: "Next Slide →", emoji: "👈" },
+  swipe_right: { label: "Swipe Right", action: "Previous Slide ←", emoji: "👉" },
+  none: { label: "No Gesture", action: "—", emoji: "❓" },
 };
 
 type Landmark = { x: number; y: number; z: number };
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function clamp01(value: number): number {
+  return clamp(value, 0, 1);
+}
 
 function dist(a: Landmark, b: Landmark): number {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
 }
 
-function isFingerExtended(landmarks: Landmark[], fingerTip: number, fingerPip: number, wrist: number): boolean {
+// Robust-ish hand scale (normalized coords) used to make thresholds adaptive.
+function handScale(landmarks: Landmark[]): number {
+  const wristToMiddleMcp = dist(landmarks[0], landmarks[9]); // palm length proxy
+  const indexMcpToPinkyMcp = dist(landmarks[5], landmarks[17]); // palm width proxy
+  const scale = (wristToMiddleMcp + indexMcpToPinkyMcp) / 2;
+  return Math.max(scale, 1e-6);
+}
+
+function angleDeg(a: Landmark, b: Landmark, c: Landmark): number {
+  const abx = a.x - b.x;
+  const aby = a.y - b.y;
+  const abz = a.z - b.z;
+
+  const cbx = c.x - b.x;
+  const cby = c.y - b.y;
+  const cbz = c.z - b.z;
+
+  const dot = abx * cbx + aby * cby + abz * cbz;
+  const abMag = Math.sqrt(abx * abx + aby * aby + abz * abz);
+  const cbMag = Math.sqrt(cbx * cbx + cby * cby + cbz * cbz);
+  if (abMag < 1e-6 || cbMag < 1e-6) return 0;
+  const cos = clamp(dot / (abMag * cbMag), -1, 1);
+  return (Math.acos(cos) * 180) / Math.PI;
+}
+
+function isFingerExtended(
+  landmarks: Landmark[],
+  fingerTip: number,
+  fingerPip: number,
+  fingerMcp: number,
+  wrist: number
+): boolean {
+  // Hybrid test: distance-to-wrist (stable) + joint straightness (reduces false positives when curled).
   const tipToWrist = dist(landmarks[fingerTip], landmarks[wrist]);
   const pipToWrist = dist(landmarks[fingerPip], landmarks[wrist]);
-  return tipToWrist > pipToWrist * 1.1;
+
+  const lengthOk = tipToWrist > pipToWrist * 1.08;
+  const straightOk = angleDeg(landmarks[fingerMcp], landmarks[fingerPip], landmarks[fingerTip]) > 160;
+
+  // Allow a stronger distance signal to pass even when angle is noisy (common under occlusion).
+  const strongLengthOk = tipToWrist > pipToWrist * 1.18;
+
+  return (lengthOk && straightOk) || strongLengthOk;
 }
 
 function isThumbExtended(landmarks: Landmark[]): boolean {
+  const scale = handScale(landmarks);
   const palmCenter = landmarks[9];
+
   const tipDist = dist(landmarks[4], palmCenter);
   const ipDist = dist(landmarks[3], palmCenter);
-  return tipDist > ipDist * 1.1;
+  const awayFromPalm = tipDist > ipDist * 1.06;
+
+  const thumbStraight = angleDeg(landmarks[2], landmarks[3], landmarks[4]) > 150;
+
+  // If thumb is very close to index tip, it's likely a pinch/OK rather than "extended".
+  const thumbIndexGap = dist(landmarks[4], landmarks[8]);
+  const notPinched = thumbIndexGap > scale * 0.28;
+
+  return awayFromPalm && (thumbStraight || notPinched);
 }
 
-// Check if thumb tip and index tip are close (for OK / pinch)
-function areTipsTouching(landmarks: Landmark[], tipA: number, tipB: number, threshold = 0.06): boolean {
-  return dist(landmarks[tipA], landmarks[tipB]) < threshold;
+// Check if two tips are close (for OK / pinch). Threshold is relative to hand size.
+function tipsTouching(
+  landmarks: Landmark[],
+  tipA: number,
+  tipB: number
+): { touching: boolean; closeness: number } {
+  const scale = handScale(landmarks);
+  const threshold = scale * 0.35;
+  const d = dist(landmarks[tipA], landmarks[tipB]);
+  const closeness = clamp01(1 - d / threshold);
+  return { touching: d < threshold, closeness };
 }
 
 export function classifyGesture(landmarks: Landmark[]): GestureResult {
@@ -83,35 +148,41 @@ export function classifyGesture(landmarks: Landmark[]): GestureResult {
   }
 
   const wrist = 0;
+  const scale = handScale(landmarks);
+  const palmCenter = landmarks[9];
+
   const thumb = isThumbExtended(landmarks);
-  const index = isFingerExtended(landmarks, 8, 6, wrist);
-  const middle = isFingerExtended(landmarks, 12, 10, wrist);
-  const ring = isFingerExtended(landmarks, 16, 14, wrist);
-  const pinky = isFingerExtended(landmarks, 20, 18, wrist);
+  const index = isFingerExtended(landmarks, 8, 6, 5, wrist);
+  const middle = isFingerExtended(landmarks, 12, 10, 9, wrist);
+  const ring = isFingerExtended(landmarks, 16, 14, 13, wrist);
+  const pinky = isFingerExtended(landmarks, 20, 18, 17, wrist);
 
   const extendedCount = [thumb, index, middle, ring, pinky].filter(Boolean).length;
-  const thumbIndexTouching = areTipsTouching(landmarks, 4, 8);
+  const { touching: thumbIndexTouching, closeness: thumbIndexCloseness } = tipsTouching(landmarks, 4, 8);
 
   // --- Priority-ordered classification ---
 
-  // OK Sign: thumb + index tips touching, other fingers extended
-  if (thumbIndexTouching && middle && ring) {
-    return { gesture: "ok_sign", confidence: 0.88, ...GESTURE_MAP.ok_sign };
+  // OK Sign: thumb + index tips touching, at least one other finger extended
+  if (thumbIndexTouching && (middle || ring || pinky)) {
+    const conf = 0.78 + 0.18 * thumbIndexCloseness + 0.05 * clamp01((extendedCount - 2) / 3);
+    return { gesture: "ok_sign", confidence: +conf.toFixed(2), ...GESTURE_MAP.ok_sign };
   }
 
   // Pinch: thumb + index tips touching, other fingers curled
-  if (thumbIndexTouching && !middle && !ring) {
-    return { gesture: "pinch", confidence: 0.85, ...GESTURE_MAP.pinch };
+  if (thumbIndexTouching && !middle && !ring && !pinky) {
+    const conf = 0.75 + 0.2 * thumbIndexCloseness;
+    return { gesture: "pinch", confidence: +conf.toFixed(2), ...GESTURE_MAP.pinch };
   }
 
-  // Thumbs up/down: only thumb extended
+  // Thumbs up/down: only thumb extended (direction uses an adaptive threshold)
   if (thumb && !index && !middle && !ring && !pinky) {
     const thumbTip = landmarks[4];
     const thumbMcp = landmarks[2];
-    if (thumbTip.y < thumbMcp.y - 0.05) {
+    const yThresh = scale * 0.25;
+    if (thumbTip.y < thumbMcp.y - yThresh) {
       return { gesture: "thumbs_up", confidence: 0.85, ...GESTURE_MAP.thumbs_up };
     }
-    if (thumbTip.y > thumbMcp.y + 0.05) {
+    if (thumbTip.y > thumbMcp.y + yThresh) {
       return { gesture: "thumbs_down", confidence: 0.85, ...GESTURE_MAP.thumbs_down };
     }
   }
@@ -131,13 +202,14 @@ export function classifyGesture(landmarks: Landmark[]): GestureResult {
     return { gesture: "call_me", confidence: 0.85, ...GESTURE_MAP.call_me };
   }
 
-  // Finger Gun 👈: thumb + index extended, others curled
+  // Finger Gun 👉: thumb + index extended, others curled
   if (thumb && index && !middle && !ring && !pinky) {
     return { gesture: "gun", confidence: 0.84, ...GESTURE_MAP.gun };
   }
 
-  // Pointing ☝️: only index extended (no thumb)
-  if (!thumb && index && !middle && !ring && !pinky) {
+  // Pointing ☝️: index extended, others curled; allow a relaxed thumb to reduce "gun" false positives.
+  const thumbRelaxed = dist(landmarks[4], palmCenter) < scale * 0.75;
+  if (index && !middle && !ring && !pinky && (!thumb || thumbRelaxed)) {
     return { gesture: "pointing", confidence: 0.9, ...GESTURE_MAP.pointing };
   }
 
@@ -175,13 +247,15 @@ export function classifyGesture(landmarks: Landmark[]): GestureResult {
     }
   }
 
-  // Open palm ✋: all fingers extended
-  if (extendedCount >= 4) {
+  // Open palm ✋: all fingers extended and tips away from the palm center
+  const openFingers = [8, 12, 16, 20].every((tip) => dist(landmarks[tip], palmCenter) > scale * 0.85);
+  if (extendedCount >= 4 && openFingers) {
     return { gesture: "open_palm", confidence: 0.92, ...GESTURE_MAP.open_palm };
   }
 
-  // Fist ✊: no fingers extended
-  if (extendedCount <= 1 && !index && !middle) {
+  // Fist ✊: all finger tips close to palm center (more robust than "extendedCount" alone)
+  const curledTips = [8, 12, 16, 20].every((tip) => dist(landmarks[tip], palmCenter) < scale * 0.6);
+  if (!index && !middle && !ring && !pinky && curledTips) {
     return { gesture: "fist", confidence: 0.87, ...GESTURE_MAP.fist };
   }
 
@@ -209,6 +283,7 @@ export function detectSwipe(landmarks: Landmark[]): GestureType | null {
 
   if (dt < 100 || dt > 500) return null;
 
+  // NOTE: These directions are kept as-is because the UI uses a mirrored camera view.
   if (dx > 0.15) {
     positionHistory = [];
     return "swipe_left";
@@ -224,3 +299,4 @@ export function detectSwipe(landmarks: Landmark[]): GestureType | null {
 export function resetSwipeHistory() {
   positionHistory = [];
 }
+

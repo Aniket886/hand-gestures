@@ -181,6 +181,92 @@ export function useHandTracking(
   const gestureActionRef = useRef(onGestureAction);
   gestureActionRef.current = onGestureAction;
 
+  // Gesture stabilization to reduce frame-to-frame flicker (jitter/partial occlusion).
+  const stableGestureRef = useRef<GestureResult | null>(null);
+  const candidateGestureRef = useRef<{ gesture: GestureResult; frames: number } | null>(null);
+  const noneFramesRef = useRef(0);
+
+  const stabilizeGesture = useCallback((observed: GestureResult | null): GestureResult | null => {
+    if (!observed) {
+      stableGestureRef.current = null;
+      candidateGestureRef.current = null;
+      noneFramesRef.current = 0;
+      return null;
+    }
+
+    // Swipes are already time-aggregated; don't delay them.
+    if (observed.gesture === "swipe_left" || observed.gesture === "swipe_right") {
+      stableGestureRef.current = observed;
+      candidateGestureRef.current = null;
+      noneFramesRef.current = 0;
+      return observed;
+    }
+
+    const MIN_CONFIDENCE = 0.7;
+    const STABLE_FRAMES = 3;
+    const CLEAR_FRAMES = 2;
+
+    const isUsable = observed.gesture !== "none" && observed.confidence >= MIN_CONFIDENCE;
+    if (!isUsable) {
+      candidateGestureRef.current = null;
+      noneFramesRef.current += 1;
+      if (noneFramesRef.current >= CLEAR_FRAMES) {
+        stableGestureRef.current = null;
+      }
+      return stableGestureRef.current;
+    }
+
+    noneFramesRef.current = 0;
+
+    const stable = stableGestureRef.current;
+    if (stable && stable.gesture === observed.gesture) {
+      // Keep stable gesture updated with freshest confidence/label.
+      stableGestureRef.current = observed;
+      candidateGestureRef.current = null;
+      return observed;
+    }
+
+    const candidate = candidateGestureRef.current;
+    if (!candidate || candidate.gesture.gesture !== observed.gesture) {
+      candidateGestureRef.current = { gesture: observed, frames: 1 };
+      return stableGestureRef.current;
+    }
+
+    candidate.frames += 1;
+    if (candidate.frames >= STABLE_FRAMES) {
+      stableGestureRef.current = candidate.gesture;
+      candidateGestureRef.current = null;
+    }
+
+    return stableGestureRef.current;
+  }, []);
+
+  // Landmark smoothing (EMA) per handedness to reduce jitter before classification/drawing.
+  const smoothedLandmarksRef = useRef<Record<string, { x: number; y: number; z: number }[] | null>>({
+    Left: null,
+    Right: null,
+  });
+
+  const smoothLandmarks = useCallback((raw: any[], key: string) => {
+    const prev = smoothedLandmarksRef.current[key];
+    const alpha = 0.55; // higher = less lag, lower = smoother
+
+    if (!prev || prev.length !== raw.length) {
+      const seeded = raw.map((p) => ({ x: p.x, y: p.y, z: p.z ?? 0 }));
+      smoothedLandmarksRef.current[key] = seeded;
+      return seeded;
+    }
+
+    const next = raw.map((p, i) => ({
+      x: prev[i].x + alpha * (p.x - prev[i].x),
+      y: prev[i].y + alpha * (p.y - prev[i].y),
+      z: prev[i].z + alpha * ((p.z ?? 0) - prev[i].z),
+    }));
+
+    smoothedLandmarksRef.current[key] = next;
+    return next;
+  }, []);
+
   const start = useCallback(async () => {
     setState((s) => ({ ...s, error: null, isLoading: true, trackingReady: false }));
 
@@ -243,8 +329,9 @@ export function useHandTracking(
         let isWriting = false;
 
         for (let h = 0; h < handCount; h++) {
-          const landmarks = results.multiHandLandmarks[h];
+          const rawLandmarks = results.multiHandLandmarks[h];
           const handedness = results.multiHandedness?.[h]?.label || (h === 0 ? "Right" : "Left");
+          const landmarks = smoothLandmarks(rawLandmarks as any, handedness);
           const colors = HAND_COLORS[handedness] || HAND_COLORS.Right;
 
           const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
@@ -387,7 +474,7 @@ export function useHandTracking(
           }
         }
 
-        const swipe = detectSwipe(handsData[0].landmarks);
+        const swipe = detectSwipe(results.multiHandLandmarks[0]);
         const finalGesture = swipe
           ? {
               gesture: swipe,
@@ -398,9 +485,11 @@ export function useHandTracking(
             }
           : primaryGesture;
 
+        const stabilizedGesture = stabilizeGesture(finalGesture);
+
         setState((s) => ({
           ...s,
-          gesture: finalGesture,
+          gesture: stabilizedGesture,
           landmarks: handsData[0].landmarks,
           hands: handsData,
           writingTip: isWriting ? writingTip : null,
@@ -408,11 +497,16 @@ export function useHandTracking(
           stringMeasurements: measurements,
         }));
 
-        if (finalGesture && finalGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
+        if (stabilizedGesture && stabilizedGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
           lastActionTime.current = now;
-          gestureActionRef.current?.(finalGesture.gesture);
+          gestureActionRef.current?.(stabilizedGesture.gesture);
         }
       } else {
+        stableGestureRef.current = null;
+        candidateGestureRef.current = null;
+        noneFramesRef.current = 0;
+        smoothedLandmarksRef.current.Left = null;
+        smoothedLandmarksRef.current.Right = null;
         setState((s) => ({
           ...s,
           gesture: null,
@@ -480,6 +574,11 @@ export function useHandTracking(
     cameraRef.current = null;
     try { handsRef.current?.close(); } catch (_) {}
     handsRef.current = null;
+    stableGestureRef.current = null;
+    candidateGestureRef.current = null;
+    noneFramesRef.current = 0;
+    smoothedLandmarksRef.current.Left = null;
+    smoothedLandmarksRef.current.Right = null;
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((t) => t.stop());
