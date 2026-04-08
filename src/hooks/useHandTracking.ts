@@ -45,6 +45,7 @@ function loadHandsRuntime(): Promise<new (config: any) => any> {
 }
 
 export interface HandData {
+  trackId: string;
   landmarks: any[];
   gesture: GestureResult;
   handedness: string;
@@ -636,6 +637,7 @@ export function useHandTracking(
               ? customGesture
               : builtInGesture;
           handsData.push({
+            trackId: trackKey,
             landmarks: landmarks as any,
             gesture,
             handedness,
