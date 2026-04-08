@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Maximize, Minimize } from "lucide-react";
+import Footer from "@/components/Footer";
 
 const slides = [
   {
