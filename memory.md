@@ -46,20 +46,32 @@ Key files:
 - Icons in `public/icons/*`, `public/apple-touch-icon.png`
 
 ### 4) Arc voice assistant (wake word + commands + Groq answers)
+- Arc is now app-scoped via `src/contexts/ArcContext.tsx` instead of page-local.
 - Wake phrase: "Arc" with aliases (arc/ark/are).
 - Wake window: saying "Arc" arms assistant for ~6s; next phrase can omit "Arc".
 - Commands supported: start/stop tracking, next/prev slide, capture calibration, open presentation/playground/home, help.
 - Freeform questions after wake are sent to Groq and spoken back.
+- Arc enablement is persisted in localStorage (`arc-enabled`) so it should stay on across route changes and reloads until user turns it off.
+- Arc state machine intent:
+  - `idle`
+  - `listening`
+  - `armed`
+  - `executing_command`
+  - `querying`
+  - `speaking`
+  - `error`
 
 Key files:
+- `src/contexts/ArcContext.tsx`
+  - Owns a single `SpeechRecognition` instance and the Arc state machine
+  - Registers page-specific handlers for home/presentation actions
+  - Pauses speech recognition while TTS is speaking, then resumes
+  - Resets armed/transcript state after commands and queries
 - `src/hooks/useVoiceCommandAssistant.ts`
-  - Uses Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`)
-  - Recently changed to `interimResults=true` to catch wake word better
-  - Executes commands/queries only on final results to reduce accidental triggers
-  - Adds basic diagnostics: "Mic active...", "Hearing speech..."
+  - Now mainly provides transcript/intent parsing helpers used by ArcContext
 - `src/components/VoiceAssistantPanel.tsx` (detailed status panel shown inside Tools modal)
-- `src/pages/Index.tsx` (wires Arc commands; includes under-camera "Arc Listening / Arc Off" chip)
-- `src/pages/Presentation.tsx` (voice slide control)
+- `src/pages/Index.tsx` (registers home handlers; includes under-camera Arc toggle chip)
+- `src/pages/Presentation.tsx` (registers presentation handlers; uses shared Arc state)
 
 Groq backend:
 - Vercel function: `api/arc.js`
@@ -70,8 +82,13 @@ Tests:
 - `src/test/voiceAssistant.test.ts` covers normalize/wake parsing/wake window interpreter.
 
 ## Current known issue / why this file exists
-- Voice assistant sometimes did not "catch" the wake word ("Arc"). A fix was applied to use interim results and add diagnostics.
-- If "Last heard" stays `-` while mic is on, likely `onresult` is not firing (browser/permission/support issue).
+- The active Arc stabilization refactor is meant to solve:
+  - Arc not staying active across pages
+  - stale wake state after a command/query
+  - self-trigger loops such as repeated "Stopping tracking"
+  - getting stuck after answering a Groq question
+- If `Last heard` stays `-` while mic is on, `SpeechRecognition.onresult` is likely not firing (browser/permission/support issue).
+- If Arc still loops after this refactor, inspect whether the browser is re-emitting old final results or whether TTS is still being captured despite the recognition pause.
 
 ## UI layout change
 - Quick toggles remain under the camera for fast access.
@@ -90,4 +107,3 @@ Key files:
 ## How to validate quickly
 - Local: `npm run lint`, `npm test`, `npm run build`
 - Deployed: check console for runtime errors; verify `assets/index-*.js` changes after deploy.
-

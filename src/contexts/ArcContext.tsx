@@ -232,7 +232,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    await runCommand(pending);
+    await runCommandRef.current?.(pending);
   }, [location.pathname]);
 
   async function runCommand(command: VoiceCommand) {

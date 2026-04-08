@@ -14,6 +14,21 @@ A real-time gesture + voice control web application built with **React**, **Medi
 - [Getting Started](#getting-started)
 - [Supported Gestures](#supported-gestures)
 - [License](#license)
+- [Arc Voice Flow](#arc-voice-flow)
+
+---
+
+<a id="arc-voice-flow"></a>
+## Arc Voice Flow
+
+Arc is a persistent app-level voice assistant:
+
+- Turn Arc on once and it should stay enabled across navigation until you turn it off.
+- Say `Arc` to arm it for a short wake window, then speak a command like `start tracking` or `next slide`.
+- If the armed phrase is question-like (`what`, `how`, `tell me`, `explain`, etc.), Arc sends it to the Groq-backed `/api/arc` endpoint and speaks the answer.
+- Arc pauses speech recognition while it speaks so it does not re-trigger on its own reply, then resumes listening after the response ends.
+
+If debugging stale or glitchy voice behavior, check the Arc status panel in Tools and the browser console first.
 
 ---
 
