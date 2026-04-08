@@ -158,6 +158,54 @@ const Index = () => {
     start();
   }, [start]);
 
+  useEffect(() => {
+    const storedWidth = window.localStorage.getItem(CAMERA_PANEL_WIDTH_KEY);
+    if (!storedWidth) return;
+    const parsedWidth = Number(storedWidth);
+    if (Number.isFinite(parsedWidth) && parsedWidth > 0) {
+      setCameraPanelWidth(parsedWidth);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!cameraPanelWidth) return;
+    window.localStorage.setItem(CAMERA_PANEL_WIDTH_KEY, String(cameraPanelWidth));
+  }, [cameraPanelWidth]);
+
+  const handleResizeMove = useCallback((event: PointerEvent) => {
+    const state = resizeStateRef.current;
+    if (!state) return;
+
+    const rawWidth = state.startWidth + (event.clientX - state.startX);
+    const nextWidth = Math.min(state.maxWidth, Math.max(420, rawWidth));
+    setCameraPanelWidth(nextWidth);
+  }, []);
+
+  const stopResize = useCallback(() => {
+    resizeStateRef.current = null;
+    window.removeEventListener("pointermove", handleResizeMove);
+    window.removeEventListener("pointerup", stopResize);
+  }, [handleResizeMove]);
+
+  const startResize = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const viewport = cameraViewportRef.current;
+    if (!viewport) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    resizeStateRef.current = {
+      startX: event.clientX,
+      startWidth: cameraPanelWidth ?? viewport.clientWidth,
+      maxWidth: viewport.clientWidth,
+    };
+
+    window.addEventListener("pointermove", handleResizeMove);
+    window.addEventListener("pointerup", stopResize);
+  }, [cameraPanelWidth, handleResizeMove, stopResize]);
+
+  useEffect(() => stopResize, [stopResize]);
+
   const handleCreateCustomGesture = useCallback(
     (label: string, emoji: string, samples: number[][]) => {
       const created = addCustomGestureProfile(label, emoji, samples);
