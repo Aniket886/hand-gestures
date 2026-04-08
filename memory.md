@@ -88,6 +88,8 @@ Key files:
   - primary pinch -> grab/release
   - two-hand pinch -> scale selected object
   - pointer position is derived from index fingertip
+- Draw mode now supports simultaneous drafting from multiple visible hands/index fingers.
+- Each stable hand track builds its own draft stroke and committed drawing object.
 - Scene supports:
   - orbit / zoom / rotate via camera controls
   - moving planets and drawn objects
