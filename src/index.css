@@ -99,4 +99,23 @@
       hsl(187 100% 50% / 0.02) 4px
     );
   }
+
+  .laser-cursor {
+    cursor: none;
+  }
+
+  .laser-cursor::after {
+    content: '';
+    position: fixed;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(circle, hsl(0 100% 55%) 0%, hsl(0 100% 50% / 0.8) 30%, hsl(0 100% 45% / 0.3) 60%, transparent 70%);
+    box-shadow: 0 0 6px 2px hsl(0 100% 50% / 0.7), 0 0 20px 6px hsl(0 100% 50% / 0.3), 0 0 40px 10px hsl(0 100% 50% / 0.1);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    left: var(--laser-x, -100px);
+    top: var(--laser-y, -100px);
+  }
 }

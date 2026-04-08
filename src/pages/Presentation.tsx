@@ -98,7 +98,7 @@ const Presentation = () => {
 
       {/* Slide area */}
       <div
-        className="flex-1 relative overflow-hidden cursor-none group"
+        className="flex-1 relative overflow-hidden group laser-cursor"
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const clickX = (e.clientX - rect.left) / rect.width;
