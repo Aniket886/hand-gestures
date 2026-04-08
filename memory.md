@@ -142,6 +142,9 @@ Key files:
 - The user requested a "Lovable bot" workflow:
   - After each logical change: `git add .`, `git commit -m "feat|fix: ..."`, `git push origin main`.
 - Keep commits granular and event-sourced.
+- This rule applies to **all assistants/models** working on this repo, including any future/offline model handoff.
+- Any assistant switching into this project must also update `memory.md` whenever meaningful work changes the current state, architecture, workflow, or known issues.
+- Any file edit should be followed by the same Lovable-style commit/push behavior so the live deployment stays synced with repo history.
 
 ## How to validate quickly
 - Local: `npm run lint`, `npm test`, `npm run build`
