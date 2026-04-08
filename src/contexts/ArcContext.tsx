@@ -81,6 +81,7 @@ const STORAGE_KEY = "arc-enabled";
 const WAKE_WORDS = ["arc", "ark", "are"];
 const WAKE_WINDOW_MS = 8000;
 const COMMAND_DEBOUNCE_MS = 1500;
+const RESTART_BACKOFF_MS = 400;
 
 const ArcContext = createContext<ArcContextValue | null>(null);
 
@@ -106,6 +107,10 @@ function collectTranscriptWindow(event: SpeechRecognitionEventLike) {
 
 function isFatalRecognitionError(code?: string) {
   return code === "not-allowed" || code === "service-not-allowed" || code === "audio-capture";
+}
+
+function isTransientRecognitionError(code?: string) {
+  return code === "aborted" || code === "no-speech" || code === "network";
 }
 
 export function ArcProvider({ children }: { children: ReactNode }) {
@@ -139,12 +144,22 @@ export function ArcProvider({ children }: { children: ReactNode }) {
   const runCommandRef = useRef<(command: VoiceCommand) => Promise<void>>();
   const answerQueryRef = useRef<(prompt: string) => Promise<void>>();
   const lastCommandRef = useRef<{ id: VoiceCommand["id"]; at: number } | null>(null);
+  const recognitionHealthRef = useRef<"healthy" | "transient" | "fatal">("healthy");
+  const restartTimerRef = useRef<number | null>(null);
+  const lastAnsweredPromptRef = useRef("");
 
   const clearInteractionState = useCallback(() => {
     logArcEvent({ state: "reset", action: "clear_interaction_state" });
     armedUntilRef.current = 0;
     pendingCommandRef.current = null;
     lastProcessedFinalRef.current = "";
+  }, []);
+
+  const clearRestartTimer = useCallback(() => {
+    if (restartTimerRef.current) {
+      window.clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
   }, []);
 
   const syncStatusFromState = useCallback(() => {
@@ -382,6 +397,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       isStartingRef.current = false;
       setIsListening(true);
       setError(null);
+       recognitionHealthRef.current = "healthy";
       logArcEvent({ state: "listening", action: "recognition_started" });
       syncStatusFromState();
       setLastResponse((current) => (current === "Idle" ? 'Listening for "Arc"...' : current));
@@ -398,6 +414,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       const wake = findWakeWord(normalized, WAKE_WORDS);
       const armed = armedUntilRef.current > now;
+      const questionCandidate = wake.hasWake ? wake.afterWake.trim() : armed ? normalized : "";
 
       if (lastSpokenTextRef.current && normalized === lastSpokenTextRef.current) {
         return;
@@ -418,7 +435,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const actionable = wake.hasWake ? wake.afterWake.trim() : armed ? normalized : "";
+      const actionable = questionCandidate;
       if (!actionable || !sawFinal) return;
 
       if (actionable === lastProcessedFinalRef.current) return;
@@ -439,6 +456,12 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       }
 
       if (isQuestionLike(actionable)) {
+        if (lastAnsweredPromptRef.current === actionable) {
+          clearInteractionState();
+          syncStatusFromState();
+          return;
+        }
+        lastAnsweredPromptRef.current = actionable;
         logArcEvent({ state: "armed", action: "question_detected", transcript: actionable });
         void answerQueryRef.current?.(actionable);
         return;
@@ -452,13 +475,18 @@ export function ArcProvider({ children }: { children: ReactNode }) {
 
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
       const code = event?.error || "unknown";
-      if (code === "aborted") return;
-      logArcEvent({ state: "error", action: "recognition_error", detail: code });
+      if (isTransientRecognitionError(code)) {
+        recognitionHealthRef.current = "transient";
+        logArcEvent({ state: "listening", action: "recognition_error_transient", detail: code });
+        return;
+      }
 
       if (isFatalRecognitionError(code)) {
         userStoppedRef.current = true;
         setIsListening(false);
         setStatus("error");
+        recognitionHealthRef.current = "fatal";
+        logArcEvent({ state: "error", action: "recognition_error_fatal", detail: code });
         if (code === "audio-capture") {
           setError("No microphone found. Connect a mic and try again.");
           setLastResponse("No microphone found.");
@@ -469,6 +497,8 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      recognitionHealthRef.current = "transient";
+      logArcEvent({ state: "listening", action: "recognition_error_transient", detail: code });
       setError(code ? `Voice error: ${code}` : "Voice recognition error");
     };
 
@@ -476,13 +506,24 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       isStartingRef.current = false;
       setIsListening(false);
       logArcEvent({ state: "idle", action: "recognition_ended" });
-      if (!userStoppedRef.current && !pauseForSpeechRef.current && !errorRef.current && isEnabledRef.current) {
-        startRecognition();
+      if (
+        !userStoppedRef.current &&
+        !pauseForSpeechRef.current &&
+        recognitionHealthRef.current !== "fatal" &&
+        isEnabledRef.current
+      ) {
+        clearRestartTimer();
+        logArcEvent({ state: "listening", action: "recognition_restart_scheduled", detail: `${RESTART_BACKOFF_MS}ms` });
+        restartTimerRef.current = window.setTimeout(() => {
+          logArcEvent({ state: "listening", action: "recognition_restart_success" });
+          startRecognition();
+        }, RESTART_BACKOFF_MS);
       }
     };
 
     return () => {
       userStoppedRef.current = true;
+      clearRestartTimer();
       try {
         recognition.stop();
       } catch {
@@ -490,7 +531,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       }
       recognitionRef.current = null;
     };
-  }, [clearInteractionState, navigate, speakAndResume, startRecognition, syncStatusFromState]);
+  }, [clearInteractionState, clearRestartTimer, navigate, speakAndResume, startRecognition, syncStatusFromState]);
 
   useEffect(() => {
     if (!isSupported) return;
@@ -505,10 +546,13 @@ export function ArcProvider({ children }: { children: ReactNode }) {
     if (!isSupported) return;
 
     if (isEnabled) {
+      recognitionHealthRef.current = "healthy";
       startRecognition();
     } else {
       userStoppedRef.current = true;
       pauseForSpeechRef.current = false;
+      recognitionHealthRef.current = "healthy";
+      clearRestartTimer();
       window.speechSynthesis?.cancel();
       stopRecognition();
       setIsListening(false);
@@ -516,7 +560,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       setStatus("idle");
       setLastResponse("Arc paused.");
     }
-  }, [clearInteractionState, isEnabled, isSupported, startRecognition, stopRecognition]);
+  }, [clearInteractionState, clearRestartTimer, isEnabled, isSupported, startRecognition, stopRecognition]);
 
   useEffect(() => {
     if (!isEnabled) return;
@@ -547,6 +591,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
     setError(null);
     setIsEnabled(true);
     setStatus("listening");
+    recognitionHealthRef.current = "healthy";
     setLastResponse('Listening for "Arc"...');
     logArcEvent({ state: "listening", action: "arc_enabled" });
   }, []);
