@@ -392,13 +392,25 @@ const Index = () => {
             <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
               Quick Controls
             </p>
-            <button
-              onClick={() => setToolsOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
-            >
-              <Wrench className="w-3.5 h-3.5" />
-              Tools
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={voice.isListening ? voice.stopListening : voice.startListening}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider border transition-all ${
+                  voice.isListening
+                    ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                    : "bg-secondary/50 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+                }`}
+              >
+                {voice.isListening ? "Arc Listening" : "Arc Off"}
+              </button>
+              <button
+                onClick={() => setToolsOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                Tools
+              </button>
+            </div>
           </div>
           <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} variant="bar" />
         </div>
