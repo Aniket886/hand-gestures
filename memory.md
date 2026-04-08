@@ -97,6 +97,8 @@ Key files:
   - pointer position is derived from index fingertip
 - Draw mode now supports simultaneous drafting from multiple visible hands/index fingers.
 - Each stable hand track builds its own draft stroke and committed drawing object.
+- Draw mode now uses a more intentional one-hand writing pose gate instead of generic hand motion.
+- Committed drawings are clamped to safer default bounds so they do not dominate the 3D scene.
 - Spatial interaction state is now centralized in `src/hooks/useSpatialInteractionController.ts`.
 - `SpatialScene.tsx` is now primarily presentational; object mutation no longer happens directly inside the render loop.
 - Interaction precedence is now:
@@ -104,6 +106,7 @@ Key files:
   - selected object two-hand scaling second
   - scene-level two-hand scaling when no object is selected
   - orbit controls as background camera navigation
+- Bottom mode-aware hints are now shown for Draw / Spatial / Solar controls.
 - Scene supports:
   - orbit / zoom / rotate via camera controls
   - moving planets and drawn objects
@@ -120,6 +123,7 @@ Key files:
 Known limitations:
 - Draw-to-object conversion is MVP quality: committed drawings become 3D line objects, not volumetric meshes.
 - Scene interaction is more stable now, but still not physics-driven or depth-snapped.
+- Object rotation is still heuristic rather than full physical 6DoF manipulation.
 
 Groq backend:
 - Vercel function: `api/arc.js`
