@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Maximize, Mic, MicOff } from "lucide-react";
 import Footer from "@/components/Footer";
-import { useVoiceCommandAssistant, type VoiceCommand } from "@/hooks/useVoiceCommandAssistant";
+import { useArc } from "@/contexts/ArcContext";
 
 const slides = [
   {
@@ -36,6 +36,7 @@ const TOTAL_SLIDES = slides.length;
 
 const Presentation = () => {
   const navigate = useNavigate();
+  const arc = useArc();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const slideAreaRef = useRef<HTMLDivElement>(null);
@@ -54,54 +55,13 @@ const Presentation = () => {
 
   const goNext = useCallback(() => setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1)), []);
   const goPrev = useCallback(() => setCurrentSlide((s) => Math.max(s - 1, 0)), []);
-  const voiceRespondRef = useRef<(message: string, withVoice?: boolean) => void>(() => {});
 
-  const handleVoiceCommand = useCallback(
-    (command: VoiceCommand) => {
-      if (command.id === "next_slide") {
-        goNext();
-        voiceRespondRef.current("Next slide.");
-        return;
-      }
-      if (command.id === "prev_slide") {
-        goPrev();
-        voiceRespondRef.current("Previous slide.");
-        return;
-      }
-      if (command.id === "go_home") {
-        navigate("/");
-        voiceRespondRef.current("Returning home.");
-        return;
-      }
-      if (command.id === "help") {
-        voiceRespondRef.current("Try Arc next slide, Arc previous slide, or Arc go home.");
-      }
-    },
-    [goNext, goPrev, navigate]
-  );
-
-  const voice = useVoiceCommandAssistant({
-    wakePhrase: "arc",
-    onCommand: handleVoiceCommand,
-    onQuery: async (prompt) => {
-      try {
-        const res = await fetch("/api/arc", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
-        const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
-        if (!res.ok) {
-          voiceRespondRef.current(data?.error ? `Error: ${data.error}` : "Unable to answer right now.");
-          return;
-        }
-        voiceRespondRef.current((data?.text || "No answer.").trim());
-      } catch {
-        voiceRespondRef.current("Network error. Unable to reach Arc server.");
-      }
-    },
-  });
-  voiceRespondRef.current = voice.respond;
+  useEffect(() => {
+    return arc.registerPresentationHandlers({
+      nextSlide: async () => goNext(),
+      prevSlide: async () => goPrev(),
+    });
+  }, [arc, goNext, goPrev]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -118,18 +78,6 @@ const Presentation = () => {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [goNext, goPrev, navigate]);
-
-  useEffect(() => {
-    const onVoiceControl = (event: Event) => {
-      const detail = (event as CustomEvent<{ action?: string }>).detail;
-      if (detail?.action === "next") goNext();
-      if (detail?.action === "prev") goPrev();
-    };
-    window.addEventListener("voice-presentation-command", onVoiceControl as EventListener);
-    return () => {
-      window.removeEventListener("voice-presentation-command", onVoiceControl as EventListener);
-    };
-  }, [goNext, goPrev]);
 
   // Track fullscreen state
   useEffect(() => {
@@ -168,11 +116,11 @@ const Presentation = () => {
             Fullscreen
           </button>
           <button
-            onClick={voice.isListening ? voice.stopListening : voice.startListening}
+            onClick={arc.isEnabled ? arc.disableArc : arc.enableArc}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
           >
-            {voice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-            {voice.isListening ? "Voice On" : "Voice Off"}
+            {arc.isEnabled ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+            {arc.isEnabled ? "Arc On" : "Arc Off"}
           </button>
         </div>
       )}
@@ -266,11 +214,11 @@ const Presentation = () => {
           </motion.div>
           <div className="fixed bottom-4 right-4 z-50 bg-card/80 backdrop-blur-md border border-border rounded-lg px-3 py-2">
             <button
-              onClick={voice.isListening ? voice.stopListening : voice.startListening}
+              onClick={arc.isEnabled ? arc.disableArc : arc.enableArc}
               className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-all"
             >
-              {voice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              {voice.isListening ? "Arc Listening" : "Start Arc"}
+              {arc.isEnabled ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              {arc.isEnabled ? "Arc Listening" : "Start Arc"}
             </button>
           </div>
         </>

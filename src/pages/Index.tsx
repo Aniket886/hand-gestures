@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useHandTracking } from "@/hooks/useHandTracking";
 import { useFaceEmotion } from "@/hooks/useFaceEmotion";
@@ -23,10 +23,9 @@ import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2, Wre
 import Footer from "@/components/Footer";
 import { useTrackingPreferences } from "@/hooks/useTrackingPreferences";
 import { useCustomGestureProfiles } from "@/hooks/useCustomGestureProfiles";
-import { useVoiceCommandAssistant, type VoiceCommand } from "@/hooks/useVoiceCommandAssistant";
+import { useArc } from "@/contexts/ArcContext";
 
 const Index = () => {
-  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
@@ -44,6 +43,7 @@ const Index = () => {
   featureFlagsRef.current = featureFlags;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const arc = useArc();
   const { settings: trackingSettings, updateSetting: updateTrackingSetting, resetSettings: resetTrackingSettings } =
     useTrackingPreferences();
   const { profiles: customGestureProfiles, addProfile: addCustomGestureProfile, removeProfile: removeCustomGestureProfile } =
@@ -171,85 +171,17 @@ const Index = () => {
     [removeCustomGestureProfile, removeMappingByGesture]
   );
 
-  const voiceRespondRef = useRef<(message: string, withVoice?: boolean) => void>(() => {});
-
-  const handleVoiceCommand = useCallback(
-    (command: VoiceCommand) => {
-      if (command.id === "start_tracking") {
+  useEffect(() => {
+    return arc.registerHomeHandlers({
+      startTracking: async () => {
         if (!isActive) handleStart();
-        voiceRespondRef.current("Starting tracking.");
-        return;
-      }
-      if (command.id === "stop_tracking") {
+      },
+      stopTracking: async () => {
         if (isActive) stop();
-        voiceRespondRef.current("Stopping tracking.");
-        return;
-      }
-      if (command.id === "next_slide") {
-        navigate("/present");
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("voice-presentation-command", { detail: { action: "next" } }));
-        }, 120);
-        voiceRespondRef.current("Opening presentation. Next slide.");
-        return;
-      }
-      if (command.id === "prev_slide") {
-        navigate("/present");
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("voice-presentation-command", { detail: { action: "prev" } }));
-        }, 120);
-        voiceRespondRef.current("Opening presentation. Previous slide.");
-        return;
-      }
-      if (command.id === "capture_calibration") {
-        const ok = captureCalibration();
-        voiceRespondRef.current(ok ? "Calibration captured." : "Show one hand clearly, then try calibration again.");
-        return;
-      }
-      if (command.id === "open_presentation") {
-        navigate("/present");
-        voiceRespondRef.current("Opening presentation mode.");
-        return;
-      }
-      if (command.id === "open_playground") {
-        navigate("/play");
-        voiceRespondRef.current("Opening playground mode.");
-        return;
-      }
-      if (command.id === "go_home") {
-        navigate("/");
-        voiceRespondRef.current("Returning to home.");
-        return;
-      }
-      if (command.id === "help") {
-        voiceRespondRef.current("Try Arc start tracking, Arc next slide, or Arc enable calibration.");
-      }
-    },
-    [captureCalibration, handleStart, isActive, navigate, stop]
-  );
-
-  const voice = useVoiceCommandAssistant({
-    wakePhrase: "arc",
-    onCommand: handleVoiceCommand,
-    onQuery: async (prompt) => {
-      try {
-        const res = await fetch("/api/arc", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
-        const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
-        if (!res.ok) {
-          voiceRespondRef.current(data?.error ? `Error: ${data.error}` : "Unable to answer right now.");
-          return;
-        }
-        voiceRespondRef.current((data?.text || "No answer.").trim());
-      } catch {
-        voiceRespondRef.current("Network error. Unable to reach Arc server.");
-      }
-    },
-  });
-  voiceRespondRef.current = voice.respond;
+      },
+      captureCalibration: async () => captureCalibration(),
+    });
+  }, [arc, captureCalibration, handleStart, isActive, stop]);
 
   return (
     <div className="min-h-screen bg-background grid-bg scanline">
@@ -411,14 +343,14 @@ const Index = () => {
             </p>
             <div className="flex items-center gap-2">
               <button
-                onClick={voice.isListening ? voice.stopListening : voice.startListening}
+                onClick={arc.isEnabled ? arc.disableArc : arc.enableArc}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider border transition-all ${
-                  voice.isListening
+                  arc.isEnabled
                     ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
                     : "bg-secondary/50 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
                 }`}
               >
-                {voice.isListening ? "Arc Listening" : "Arc Off"}
+                {arc.isEnabled ? `Arc ${arc.status === "armed" ? "Ready" : arc.status === "speaking" ? "Speaking" : arc.status === "querying" ? "Thinking" : arc.status === "error" ? "Error" : "Listening"}` : "Arc Off"}
               </button>
               <button
                 onClick={() => setToolsOpen(true)}
@@ -488,13 +420,14 @@ const Index = () => {
           onDeleteProfile={handleDeleteCustomGesture}
         />
         <VoiceAssistantPanel
-          isSupported={voice.isSupported}
-          isListening={voice.isListening}
-          lastHeard={voice.lastHeard}
-          lastResponse={voice.lastResponse}
-          error={voice.error}
-          onStart={voice.startListening}
-          onStop={voice.stopListening}
+          isSupported={arc.isSupported}
+          isEnabled={arc.isEnabled}
+          status={arc.status}
+          lastHeard={arc.lastHeard}
+          lastResponse={arc.lastResponse}
+          error={arc.error}
+          onStart={arc.enableArc}
+          onStop={arc.disableArc}
         />
         {featureFlags.faceEmotion && <EngagementPanel data={engagement} isActive={isActive} />}
       </ToolsModal>

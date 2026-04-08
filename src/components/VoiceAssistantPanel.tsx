@@ -2,7 +2,8 @@ import { Mic, MicOff, Radio, Terminal } from "lucide-react";
 
 interface VoiceAssistantPanelProps {
   isSupported: boolean;
-  isListening: boolean;
+  isEnabled: boolean;
+  status: string;
   lastHeard: string;
   lastResponse: string;
   error: string | null;
@@ -12,7 +13,8 @@ interface VoiceAssistantPanelProps {
 
 const VoiceAssistantPanel = ({
   isSupported,
-  isListening,
+  isEnabled,
+  status,
   lastHeard,
   lastResponse,
   error,
@@ -27,17 +29,22 @@ const VoiceAssistantPanel = ({
           <h3 className="font-mono text-xs font-bold text-foreground uppercase tracking-wider">Voice Assistant</h3>
         </div>
         <button
-          onClick={isListening ? onStop : onStart}
+          onClick={isEnabled ? onStop : onStart}
           disabled={!isSupported}
           className={`px-3 py-1.5 rounded-lg font-mono text-[11px] border transition-all flex items-center gap-1.5 ${
-            isListening
+            isEnabled
               ? "bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20"
               : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
           } disabled:opacity-40`}
         >
-          {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-          {isListening ? "Stop" : "Start"}
+          {isEnabled ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+          {isEnabled ? "Stop" : "Start"}
         </button>
+      </div>
+
+      <div className="bg-secondary/20 border border-border rounded-lg p-3 space-y-1.5">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Status</p>
+        <p className="font-mono text-xs text-foreground capitalize">{status.replaceAll("_", " ")}</p>
       </div>
 
       {!isSupported && (

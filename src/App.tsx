@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ArcProvider } from "@/contexts/ArcContext";
 import Index from "./pages/Index.tsx";
 import Presentation from "./pages/Presentation.tsx";
 import PlayCanvas from "./pages/PlayCanvas.tsx";
@@ -16,13 +17,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/present" element={<Presentation />} />
-          <Route path="/play" element={<PlayCanvas />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <ArcProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/present" element={<Presentation />} />
+            <Route path="/play" element={<PlayCanvas />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ArcProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
