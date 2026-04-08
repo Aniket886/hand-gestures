@@ -231,6 +231,23 @@ const Index = () => {
   const voice = useVoiceCommandAssistant({
     wakePhrase: "arc",
     onCommand: handleVoiceCommand,
+    onQuery: async (prompt) => {
+      try {
+        const res = await fetch("/api/arc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
+        if (!res.ok) {
+          voiceRespondRef.current(data?.error ? `Error: ${data.error}` : "Unable to answer right now.");
+          return;
+        }
+        voiceRespondRef.current((data?.text || "No answer.").trim());
+      } catch {
+        voiceRespondRef.current("Network error. Unable to reach Arc server.");
+      }
+    },
   });
   voiceRespondRef.current = voice.respond;
 

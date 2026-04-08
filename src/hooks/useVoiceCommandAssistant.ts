@@ -21,6 +21,7 @@ interface VoiceAssistantOptions {
   wakeAliases?: string[];
   wakeWindowMs?: number;
   onCommand: (command: VoiceCommand) => void;
+  onQuery?: (prompt: string) => void | Promise<void>;
 }
 
 interface SpeechRecognitionLike {
@@ -206,6 +207,7 @@ export function useVoiceCommandAssistant({
   wakeAliases = ["arc", "ark", "are"],
   wakeWindowMs = 6000,
   onCommand,
+  onQuery,
 }: VoiceAssistantOptions) {
   const [isSupported, setIsSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -214,6 +216,8 @@ export function useVoiceCommandAssistant({
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const manualStopRef = useRef(false);
+  const onQueryRef = useRef<typeof onQuery>(onQuery);
+  onQueryRef.current = onQuery;
   const armedUntilRef = useRef(0);
   const [armedUntilMs, setArmedUntilMs] = useState(0);
 
@@ -261,10 +265,22 @@ export function useVoiceCommandAssistant({
         return;
       }
 
-      if (!interpreted.command) return;
+      if (interpreted.command) {
+        setLastResponse(`Command: ${interpreted.command.id.replaceAll("_", " ")}`);
+        onCommand(interpreted.command);
+        return;
+      }
 
-      setLastResponse(`Command: ${interpreted.command.id.replaceAll("_", " ")}`);
-      onCommand(interpreted.command);
+      // If we got here, we're either within wake window or the user said Arc + unknown phrase.
+      // Treat it as a free-form query for the app to handle (e.g. Groq).
+      const isWakeOrArmed = interpreted.normalized.length > 0 && armedUntilRef.current > 0;
+      if (isWakeOrArmed && onQueryRef.current) {
+        const prompt = interpreted.normalized;
+        setLastResponse("Thinking...");
+        void Promise.resolve(onQueryRef.current(prompt)).catch(() => {
+          setLastResponse("Unable to answer right now.");
+        });
+      }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
