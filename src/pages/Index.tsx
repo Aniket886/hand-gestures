@@ -25,9 +25,13 @@ import { useTrackingPreferences } from "@/hooks/useTrackingPreferences";
 import { useCustomGestureProfiles } from "@/hooks/useCustomGestureProfiles";
 import { useArc } from "@/contexts/ArcContext";
 
+const CAMERA_PANEL_WIDTH_KEY = "arcmotion-camera-panel-width";
+
 const Index = () => {
+  const cameraViewportRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const resizeStateRef = useRef<{ startX: number; startWidth: number; maxWidth: number } | null>(null);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
     airWriting: true,
     gestureNavigation: true,
@@ -43,6 +47,7 @@ const Index = () => {
   featureFlagsRef.current = featureFlags;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [cameraPanelWidth, setCameraPanelWidth] = useState<number | null>(null);
   const arc = useArc();
   const { settings: trackingSettings, updateSetting: updateTrackingSetting, resetSettings: resetTrackingSettings } =
     useTrackingPreferences();
