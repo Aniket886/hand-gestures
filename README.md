@@ -1,374 +1,114 @@
-# ArcMotion
+<div align="center">
 
-A real-time gesture + voice control web application built with **React**, **MediaPipe**, **face-api.js**, and an "Arc" voice assistant. Control presentations, draw in the air, play gesture-based games, create custom gestures, and more — all through your webcam.
+# ✨ ArcMotion ✨
 
-🔗 **Live Demo**: [hand-gestures.app](https://hand-gestures-lovat.vercel.app)
+**Next-Generation Spatial Computing in Your Browser**
 
-## Contents
+[![React](https://img.shields.io/badge/React-18-blue.svg?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5-purple.svg?style=for-the-badge&logo=vite)](https://vitejs.dev/)
+[![Three.js](https://img.shields.io/badge/Three.js-Black?style=for-the-badge&logo=threedotjs)](https://threejs.org/)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-AI-orange.svg?style=for-the-badge)](https://mediapipe.dev/)
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Application Flow](#application-flow)
-- [Issues Encountered & Solutions](#issues-encountered--solutions)
-- [Getting Started](#getting-started)
-- [Supported Gestures](#supported-gestures)
-- [License](#license)
-- [Arc Voice Flow](#arc-voice-flow)
+A real-time gesture and voice control web application. Control presentations, draw in the air, play gesture-based games, create custom gestures, and explore 3D space — all entirely through your webcam.
 
----
+🔗 **[Launch Live Demo](https://hand-gestures-lovat.vercel.app)** • 📖 **[Report Bug](https://github.com/Aniket886/hand-gestures/issues)** • 💡 **[Request Feature](https://github.com/Aniket886/hand-gestures/issues)**
 
-<a id="arc-voice-flow"></a>
-## Arc Voice Flow
-
-Arc is a persistent app-level voice assistant:
-
-- Turn Arc on once and it should stay enabled across navigation until you turn it off.
-- Say `Arc` to arm it for a short wake window, then speak a command like `start tracking` or `next slide`.
-- If the armed phrase is question-like (`what`, `how`, `tell me`, `explain`, etc.), Arc sends it to the Groq-backed `/api/arc` endpoint and speaks the answer.
-- Arc pauses speech recognition while it speaks so it does not re-trigger on its own reply, then resumes listening after the response ends.
-
-If debugging stale or glitchy voice behavior, check the Arc status panel in Tools and the browser console first.
+</div>
 
 ---
 
-<a id="features"></a>
-## 📸 Features
+## 🌟 Hero Features
 
-| Feature                           | Description                                                               |
-| --------------------------------- | ------------------------------------------------------------------------- |
-| **Hand Tracking**                 | Real-time multi-hand landmark detection (21 points per hand)              |
-| **18+ Gesture Recognition**       | Open palm, fist, peace, thumbs up/down, pinch, vulcan, rock, and more     |
-| **Air Writing**                   | Draw in the air using your index finger (writing pose)                    |
-| **Open Palm Eraser**              | Erase air-writing strokes by showing an open palm                         |
-| **Finger Strings**                | Visual strings connecting raised fingertips across hands                  |
-| **Distance Measurement**          | Measure distance between fingertips in centimeters (toggleable)           |
-| **Emotion Detection**             | Real-time facial emotion recognition (happy, sad, angry, surprised, etc.) |
-| **Engagement Score**              | Combined metric from gestures + facial expressions                        |
-| **Presentation Mode**             | Control slides with swipe gestures                                        |
-| **Mini Games**                    | Bubble Pop, Catch Star, Gesture Match — all gesture-controlled            |
-| **Haptic/Sound/Voice Feedback**   | Multi-modal feedback on gesture recognition                               |
-| **Customizable Gesture Mappings** | Remap gestures to different actions                                       |
-| **Spatial Interaction Mode**      | Draw shapes into space, grab 3D objects, and explore a Solar System demo  |
+ArcMotion goes beyond basic hand tracking, offering a fully multimodal, installable experience right in your browser.
+
+> 🎙️ **Arc Voice Assistant**
+> A persistent, app-level voice assistant powered by Groq. Say `"Arc"` to wake the assistant, then speak commands like `"start tracking"` or `"next slide"`. Ask it questions, and it will intelligently pause its own listening while it answers you.
+
+> 🌌 **Spatial Interaction Mode (`/spatial`)**
+> Step into the third dimension. Draw 3D interactive lines in the air, grab and scale objects with two-handed pinches, or explore an interactive Solar System scene where you control the cosmos with your fingertips.
+
+> 📱 **PWA & Offline-First**
+> Install ArcMotion on your device. Once online caching warms up the AI models (`@mediapipe/hands` & `@vladmandic/face-api`), the entire app works seamlessly offline.
 
 ---
 
-<a id="tech-stack"></a>
+## 📸 Capabilities Overview
+
+| Feature | Description |
+| :--- | :--- |
+| 🖐️ **Advanced Hand Tracking** | Real-time multi-hand landmark detection (21 points per hand). |
+| 🎭 **Emotion & Engagement** | Real-time facial emotion recognition combined with gesture metrics to calculate live engagement scores. |
+| ✍️ **Air Writing & Erasing** | Draw in the air with your index finger; erase instantly by showing an open palm. |
+| 📏 **Spatial Geometry** | Visualize "finger strings" between hands and measure physical distance in centimeters. |
+| 📊 **Presentation Mode** | Effortlessly control slide decks with physical swipe gestures. |
+| 🎮 **Gesture Gaming** | Play built-in mini-games: *Bubble Pop*, *Catch Star*, and *Gesture Match*. |
+| ⚙️ **Custom Mappings** | Easily remap the 18+ supported gestures to trigger custom actions. |
+| 🔊 **Multimodal Feedback** | Contextual sound, haptic, and voice feedback on successful gesture recognition. |
+
+---
+
+## 🎮 The Gesture Library
+
+A quick reference guide for interacting with ArcMotion's default mappings.
+
+| Gesture | Pose / Emoji | Default Action | Spatial Mode Action |
+| :--- | :---: | :--- | :--- |
+| **Open Palm** | 🖐️ | Erase drawing | - |
+| **Pinch** | 🤏 | Zoom | Grab / Release |
+| **Pinch + Drag** | 🤏 ↔️ | - | Move Object |
+| **2-Hand Pinch** | 🤏 🤏 | - | Scale Object |
+| **Fist** | ✊ | Pause | - |
+| **Pointing** | 👆 | Select | - |
+| **Thumbs Up/Down**| 👍 👎 | Approve / Dislike | - |
+| **Peace** | ✌️ | Next | - |
+| **Swipe L/R** | 👈 👉 | Next / Prev Slide | - |
+
+---
+
 ## 🛠 Tech Stack
 
-### Frontend
+ArcMotion is built with modern, type-safe, and highly optimized web technologies.
 
-| Technology         | Purpose                  |
-| ------------------ | ------------------------ |
-| **React 18**       | UI framework             |
-| **TypeScript 5**   | Type safety              |
-| **Vite 5**         | Build tool & dev server  |
-| **Tailwind CSS 3** | Utility-first styling    |
-| **Framer Motion**  | Animations & transitions |
-| **React Router 6** | Client-side routing      |
-| **Three.js + R3F** | Spatial 3D scene rendering |
-
-### AI / ML Libraries
-
-| Library             | Purpose                                          |
-| ------------------- | ------------------------------------------------ |
-| **MediaPipe Hands** | Hand landmark detection (21 keypoints × 2 hands) |
-| **face-api.js**     | Facial emotion recognition                       |
-
-### UI Components
-
-| Library          | Purpose                                               |
-| ---------------- | ----------------------------------------------------- |
-| **shadcn/ui**    | Accessible component primitives                       |
-| **Radix UI**     | Headless UI primitives (dialog, tabs, tooltips, etc.) |
-| **Lucide React** | Icon library                                          |
-| **Recharts**     | Engagement score charts                               |
-
-### State & Data
-
-| Library                   | Purpose                    |
-| ------------------------- | -------------------------- |
-| **TanStack React Query**  | Async state management     |
-| **React Hook Form + Zod** | Form handling & validation |
-
-## Spatial Interaction Mode
-
-ArcMotion now includes a dedicated `/spatial` route with three immersive modes:
-
-- `Draw Mode`: use hand-tracked air-writing, then commit sketches into 3D interactive line objects.
-- `Spatial Interaction Mode`: grab, move, rotate, and scale created objects using pinch-driven hand input.
-- `Solar System Mode`: explore a 3D Solar System scene where planets can be selected, moved, inspected, and reset.
-
-Current gesture mapping for this mode:
-- single-hand pinch: grab / release
-- pinch + drag: move object
-- two-hand pinch: scale object
-- orbit camera controls: inspect scene in 360 degrees
+| Category | Technologies |
+| :--- | :--- |
+| **Frontend Core** | React 18, TypeScript 5, Vite 5, React Router 6 |
+| **Styling & UI** | Tailwind CSS 3, Framer Motion, shadcn/ui, Radix UI, Lucide React, Recharts |
+| **AI & Vision** | MediaPipe Hands (WASM), face-api.js (TinyFaceDetect) |
+| **3D Rendering** | Three.js, React Three Fiber (R3F) |
+| **State & Data** | TanStack React Query, React Hook Form, Zod |
 
 ---
 
-<a id="project-structure"></a>
-## 📁 Project Structure
-
-<details>
-<summary>Source tree</summary>
-
-```
-src/
-├── pages/
-│   ├── Index.tsx          # Main camera + gesture dashboard
-│   ├── Presentation.tsx   # Slide presentation mode
-│   ├── PlayCanvas.tsx     # Gesture-controlled games
-│   └── NotFound.tsx       # 404 page
-├── hooks/
-│   ├── useHandTracking.ts # Core hand tracking logic (MediaPipe)
-│   ├── useFaceEmotion.ts  # Facial emotion detection (face-api.js)
-│   ├── useEngagementScore.ts # Combined engagement metric
-│   └── useGestureMappings.ts # Customizable gesture-to-action map
-├── components/
-│   ├── GestureHUD.tsx     # Gesture info overlay
-│   ├── EmotionHUD.tsx     # Emotion info overlay
-│   ├── AirWritingCanvas.tsx # Air drawing canvas
-│   ├── FeatureToggles.tsx # Toggle panel for features
-│   ├── GestureLegend.tsx  # Gesture reference guide
-│   ├── EngagementPanel.tsx # Engagement score display
-│   ├── GestureSettingsModal.tsx # Gesture mapping editor
-│   ├── DemoPresentation.tsx # Demo slide deck
-│   ├── FeedbackControls.tsx # Sound/haptic/voice toggles
-│   └── games/
-│       ├── BubblePop.tsx  # Pop bubbles with gestures
-│       ├── CatchStar.tsx  # Catch falling stars
-│       └── GestureMatch.tsx # Match gesture prompts
-├── lib/
-│   ├── gestures.ts        # Gesture classification algorithms
-│   ├── feedback.ts        # Audio/haptic/voice feedback
-│   └── utils.ts           # Utility functions
-└── main.tsx               # App entry point
-```
-
-</details>
-
----
-
-<a id="application-flow"></a>
-## 🔄 Application Flow
-
-```mermaid
-flowchart TD
-  A["User Opens App"] --> B["Click \"Start Camera\""]
-  B --> C["getUserMedia (webcam)\n→ Video feed starts"]
-  C --> D["Parallel Initialization"]
-
-  D --> E["MediaPipe Hands WASM (dynamic import)"]
-  D --> F["face-api.js Emotion Models (TinyFaceDetect)"]
-
-  E --> G["Hand Landmarks (21 per hand)"]
-  F --> H["Emotion Classification (7 emotions)"]
-
-  G --> I["Feature Pipeline"]
-  H --> I
-
-  I --> J["Action Dispatch"]
-  I --> K["Gesture Classification"]
-  I --> L["Swipe Detection"]
-  I --> M["Writing Pose Detection"]
-  I --> N["Finger String Drawing"]
-  I --> O["Distance Measurement"]
-  I --> P["Engagement Scoring"]
-
-  J --> Q["Sound/Haptic/Voice"]
-  J --> R["Slide Navigation"]
-  J --> S["Air Writing Strokes"]
-  J --> T["Game Interactions"]
-```
-
-<details>
-<summary>ASCII flow (original)</summary>
-
-```text
-┌─────────────────────────────────────────────────┐
-│                   User Opens App                 │
-└──────────────────────┬──────────────────────────┘
-                       ▼
-              ┌─────────────────┐
-              │  Click "Start   │
-              │    Camera"      │
-              └────────┬────────┘
-                       ▼
-        ┌──────────────────────────┐
-        │  getUserMedia (webcam)   │
-        │  → Video feed starts    │
-        └──────────┬───────────────┘
-                   ▼
-    ┌──────────────────────────────────┐
-    │  Parallel Initialization         │
-    ├──────────────┬───────────────────┤
-    │  MediaPipe   │  face-api.js      │
-    │  Hands WASM  │  Emotion Models   │
-    │  (dynamic    │  (TinyFaceDetect) │
-    │   import)    │                   │
-    └──────┬───────┴───────┬───────────┘
-           ▼               ▼
-    ┌─────────────┐ ┌──────────────┐
-    │ Hand Land-  │ │ Emotion      │
-    │ marks (21   │ │ Classification│
-    │ per hand)   │ │ (7 emotions) │
-    └──────┬──────┘ └──────┬───────┘
-           ▼               ▼
-    ┌──────────────────────────────┐
-    │     Feature Pipeline         │
-    ├──────────────────────────────┤
-    │ • Gesture Classification     │
-    │ • Swipe Detection            │
-    │ • Writing Pose Detection     │
-    │ • Finger String Drawing      │
-    │ • Distance Measurement       │
-    │ • Engagement Scoring         │
-    └──────────────┬───────────────┘
-                   ▼
-    ┌──────────────────────────────┐
-    │     Action Dispatch          │
-    ├──────────────────────────────┤
-    │ • Sound/Haptic/Voice         │
-    │ • Slide Navigation           │
-    │ • Air Writing Strokes        │
-    │ • Game Interactions          │
-    └──────────────────────────────┘
-```
-
-</details>
-
----
-
-<a id="issues-encountered--solutions"></a>
-## 🐛 Issues Encountered & Solutions
-
-### 1. `k8.Hands is not a constructor` (Production Build)
-
-**Problem**: The app worked in development but crashed on the published site with `k8.Hands is not a constructor`.
-
-**Root Cause**: `@mediapipe/hands` does NOT export a standard ESM module. It uses a closure pattern (`za("Hands", od)`) that registers `Hands` on `globalThis`. Named imports like `import { Hands } from "@mediapipe/hands"` work in Vite's dev server (which handles CJS differently) but break in production builds where Rollup minifies and tree-shakes the import.
-
-**Solution**: Replaced static imports with a dynamic runtime loader:
-
-```typescript
-// Broken in production
-import { Hands } from "@mediapipe/hands";
-
-// Works everywhere
-await import("@mediapipe/hands/hands.js");
-const HandsConstructor = (globalThis as any).Hands || (window as any).Hands;
-```
-
----
-
-### 2. Camera Opens but Hand Tracking Shows 0 FPS / 0 Hands
-
-**Problem**: Camera feed was visible, emotion detection worked, but hand tracking reported 0 FPS and 0 hands detected.
-
-**Root Cause**: The `requestAnimationFrame` loop was sending frames to MediaPipe before the WASM model finished initializing. `hands.send()` silently discarded frames.
-
-**Solution**: Added `await hands.initialize()` before starting the frame loop, with a timeout wrapper:
-
-```typescript
-await Promise.race([
-  hands.initialize(),
-  new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("Timed out")), 15000)
-  ),
-]);
-// Only THEN start requestAnimationFrame loop
-```
-
----
-
-### 3. GPU Mode Failure on Some Devices
-
-**Problem**: MediaPipe initialization failed on devices without WebGL2 support or with restricted GPU access.
-
-**Solution**: Implemented GPU → CPU fallback chain:
-
-```typescript
-try {
-  hands = await createAndInitHands(locateFile, onResults, false, 15000); // GPU
-} catch {
-  hands = await createAndInitHands(locateFile, onResults, true, 20000);  // CPU
-}
-```
-
----
-
-### 4. Camera Not Opening on Published Site
-
-**Problem**: `navigator.mediaDevices` was undefined on the published URL.
-
-**Root Cause**: `getUserMedia` requires a **secure context** (HTTPS or localhost).
-
-**Solution**: Added explicit guard checks:
-
-```typescript
-if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-  setError("Camera requires HTTPS. Please use the published URL or localhost.");
-}
-```
-
----
-
-### 5. Measurement Labels Appeared Mirrored
-
-**Problem**: The cm distance labels on finger strings were reversed/mirrored.
-
-**Root Cause**: The camera canvas uses CSS `transform: scaleX(-1)` for a mirror view. Canvas-drawn text inherits this flip.
-
-**Solution**: Counter-flipped the text rendering:
-
-```typescript
-ctx.save();
-ctx.translate(mx, my);
-ctx.scale(-1, 1); // Counter the CSS mirror
-ctx.fillText(label, 0, 0);
-ctx.restore();
-```
-
----
-
-### 6. Camera Overlay Blocking Video Feed
-
-**Problem**: Camera feed played behind the UI, but the "Start Camera" overlay never disappeared.
-
-**Root Cause**: `isActive` was only set after MediaPipe fully initialized. If MediaPipe failed, the overlay stayed forever.
-
-**Solution**: Set `isActive: true` immediately after `videoRef.current.play()` succeeds, independent of MediaPipe status.
-
----
-
-<a id="getting-started"></a>
 ## 🚀 Getting Started
 
-### Prerequisites
+Follow these steps to run ArcMotion locally. 
 
-- Node.js 18+ or Bun
-- A webcam
-- Modern browser (Chrome, Edge, or Firefox recommended)
+### Prerequisites
+* Node.js 18+ or Bun
+* A functioning webcam
+* A modern browser (Chrome, Edge, or Firefox)
 
 ### Installation
 
+**1. Clone the repository**
 ```bash
-# Clone the repository
-git clone <repo-url>
-cd hand-gesture-app
-
-# Install dependencies
-npm install
-
-# Start dev server
-npm run dev
+git clone [https://github.com/Aniket886/hand-gestures.git](https://github.com/Aniket886/hand-gestures.git)
+cd hand-gestures
 ```
 
-The app will be available at `http://localhost:8080`.
+**2. Install dependencies**
+```bash
+npm install
+```
 
-### Build for Production
+**3. Start the development server**
+```bash
+npm run dev
+```
+*Visit `http://localhost:8080` to see the app in action.*
 
+**4. Build for Production**
 ```bash
 npm run build
 npm run preview
@@ -376,44 +116,100 @@ npm run preview
 
 ---
 
-<a id="supported-gestures"></a>
-## 🎮 Supported Gestures
+## 🧠 Application Architecture
 
-| Gesture     | Emoji | Default Action |
-| ----------- | ----- | -------------- |
-| Open Palm   | 🖐️    | Erase drawing  |
-| Fist        | ✊    | Pause          |
-| Pointing    | 👆    | Select         |
-| Thumbs Up   | 👍    | Like / Approve |
-| Thumbs Down | 👎    | Dislike        |
-| Peace       | ✌️    | Next           |
-| Rock        | 🤘    | Play           |
-| OK Sign     | 👌    | Confirm        |
-| Pinch       | 🤏    | Zoom           |
-| Swipe Left  | 👈    | Next Slide     |
-| Swipe Right | 👉    | Previous Slide |
-| Vulcan      | 🖖    | Special Action |
+ArcMotion uses a highly parallelized pipeline to process video feeds without blocking the main UI thread.
+
+```mermaid
+flowchart TD
+    A["User Opens App"] --> B["Click 'Start Camera'"]
+    B --> C["getUserMedia (webcam)"]
+    C --> D["Parallel Model Init"]
+
+    D --> E["MediaPipe Hands (WASM)"]
+    D --> F["face-api.js (TinyFaceDetect)"]
+
+    E --> G["21-Point Hand Landmarks"]
+    F --> H["7-Class Emotion Data"]
+
+    G & H --> I{"Feature Pipeline"}
+
+    I --> J["Action Dispatcher"]
+    
+    J --> K["UI Feedback (Sound/Voice/Haptics)"]
+    J --> L["Slide Navigation"]
+    J --> M["Air Writing & 3D Spatial Canvas"]
+    J --> N["Game Interactions"]
+```
 
 ---
 
-<a id="license"></a>
-## 📄 License
+## 🐛 Troubleshooting & FAQs
 
-This project is open source. Developed By Aniket Tegginamath using lovable and codex
+<details>
+<summary><strong>1. "k8.Hands is not a constructor" in Production</strong></summary>
+<br>
+<strong>Issue:</strong> The app crashes on the published site due to `@mediapipe/hands` not exporting a standard ESM module.
+<br>
+<strong>Fix:</strong> Implemented a dynamic runtime loader that safely attaches to `globalThis`, bypassing Rollup's tree-shaking limitations in Vite.
+</details>
 
-## PWA & Offline Mode
+<details>
+<summary><strong>2. Camera opens, but hand tracking shows 0 FPS</strong></summary>
+<br>
+<strong>Issue:</strong> The `requestAnimationFrame` loop was sending frames before the WASM model fully initialized, causing dropped frames.
+<br>
+<strong>Fix:</strong> Enforced an `await hands.initialize()` block with a 15-second timeout wrapper before the loop begins.
+</details>
 
-The app now supports installable PWA behavior and offline-first caching:
+<details>
+<summary><strong>3. MediaPipe fails on older devices</strong></summary>
+<br>
+<strong>Issue:</strong> Devices lacking WebGL2 support crashed during GPU initialization.
+<br>
+<strong>Fix:</strong> Built an automatic GPU → CPU fallback chain. If WebGL fails, the app re-initializes using the CPU backend.
+</details>
 
-- Installable app manifest with standalone mode (`manifest.webmanifest`)
-- Service worker generated at build time (`dist/sw.js`)
-- Runtime cache for MediaPipe and face-api model assets from jsDelivr
-- Offline cache for app shell assets (HTML/CSS/JS/icons/fonts/images)
+<details>
+<summary><strong>4. Camera won't open on the live URL</strong></summary>
+<br>
+<strong>Issue:</strong> `navigator.mediaDevices` is undefined.
+<br>
+<strong>Fix:</strong> The browser restricts webcam access to secure contexts. Ensure you are using `https://` or `localhost`.
+</details>
 
-### Offline usage notes
+<details>
+<summary><strong>5. Text measurements are rendering mirrored</strong></summary>
+<br>
+<strong>Issue:</strong> Canvas text inherits the CSS `scaleX(-1)` used to mirror the video feed.
+<br>
+<strong>Fix:</strong> Applied a context transformation (`ctx.scale(-1, 1)`) right before `fillText()` to counter the CSS mirroring.
+</details>
 
-1. Open the app once while online and start camera/features at least once.
-2. This warms model caches (`@mediapipe/hands` and `@vladmandic/face-api`).
-3. After that, reopen the installed app (or same browser origin) while offline.
+---
 
-If model URLs are changed, revisit online once so the new model files are cached.
+## 📂 Project Structure
+
+<details>
+<summary>Click to expand folder architecture</summary>
+
+```text
+src/
+├── pages/             # Route components (Index, Presentation, PlayCanvas, NotFound)
+├── hooks/             # Core logic (useHandTracking, useFaceEmotion, useEngagement)
+├── components/        # UI pieces (HUDs, Modals, Legends, Toggles)
+│   └── games/         # Built-in mini-games
+├── lib/               # Utility functions, gesture classification, feedback logic
+└── main.tsx           # Application entry point
+```
+</details>
+
+---
+
+## 📄 License & Credits
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+<div align="center">
+  <strong>Architected & Developed by <a href="https://github.com/Aniket886">Aniket Tegginamath</a></strong>
+</div>
