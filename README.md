@@ -369,3 +369,20 @@ npm run preview
 ## 📄 License
 
 This project is open source. Developed By Aniket Tegginamath using lovable and codex
+
+## PWA & Offline Mode
+
+The app now supports installable PWA behavior and offline-first caching:
+
+- Installable app manifest with standalone mode (`manifest.webmanifest`)
+- Service worker generated at build time (`dist/sw.js`)
+- Runtime cache for MediaPipe and face-api model assets from jsDelivr
+- Offline cache for app shell assets (HTML/CSS/JS/icons/fonts/images)
+
+### Offline usage notes
+
+1. Open the app once while online and start camera/features at least once.
+2. This warms model caches (`@mediapipe/hands` and `@vladmandic/face-api`).
+3. After that, reopen the installed app (or same browser origin) while offline.
+
+If model URLs are changed, revisit online once so the new model files are cached.
