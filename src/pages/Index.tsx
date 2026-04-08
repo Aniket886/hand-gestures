@@ -19,7 +19,7 @@ import VoiceAssistantPanel from "@/components/VoiceAssistantPanel";
 import ToolsModal from "@/components/ToolsModal";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
-import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2, Wrench } from "lucide-react";
+import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2, Orbit, Wrench } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useTrackingPreferences } from "@/hooks/useTrackingPreferences";
 import { useCustomGestureProfiles } from "@/hooks/useCustomGestureProfiles";
@@ -209,6 +209,13 @@ const Index = () => {
             >
               <Gamepad2 className="w-4 h-4" />
               Play
+            </Link>
+            <Link
+              to="/spatial"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
+            >
+              <Orbit className="w-4 h-4" />
+              Spatial
             </Link>
             <Link
               to="/present"
