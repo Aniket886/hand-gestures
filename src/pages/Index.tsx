@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useHandTracking } from "@/hooks/useHandTracking";
 import { useFaceEmotion } from "@/hooks/useFaceEmotion";
@@ -25,6 +25,7 @@ import { useCustomGestureProfiles } from "@/hooks/useCustomGestureProfiles";
 import { useVoiceCommandAssistant, type VoiceCommand } from "@/hooks/useVoiceCommandAssistant";
 
 const Index = () => {
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
