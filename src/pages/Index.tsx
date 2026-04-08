@@ -298,6 +298,8 @@ const Index = () => {
         onRemoveCustom={removeCustomGesture}
         onReset={resetToDefaults}
       />
+
+      <Footer />
     </div>
   );
 };

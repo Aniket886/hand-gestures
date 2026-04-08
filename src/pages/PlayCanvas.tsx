@@ -242,6 +242,7 @@ const PlayCanvas = () => {
           )}
         </motion.div>
       </div>
+      <Footer />
     </div>
   );
 };

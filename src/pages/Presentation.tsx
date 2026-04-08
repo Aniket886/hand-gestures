@@ -182,6 +182,8 @@ const Presentation = () => {
           <span className="font-mono text-[10px] text-muted-foreground">Press ESC to exit</span>
         </motion.div>
       )}
+
+      {!isFullscreen && <Footer />}
     </div>
   );
 };
