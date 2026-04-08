@@ -62,8 +62,9 @@ function SpatialObjectNode({
 
 function SceneContent({ mode, objects, interaction }: Pick<SpatialSceneProps, "mode" | "objects" | "interaction">) {
   useFrame((state, delta) => {
+    const baseDistance = mode === "solar" ? 18 : mode === "spatial" ? 7 : 8.5;
     state.camera.position.lerp(
-      new THREE.Vector3(0, 1.8, (mode === "solar" ? 14 : 9) / interaction.sceneZoom),
+      new THREE.Vector3(0, 1.8, baseDistance / interaction.sceneZoom),
       Math.min(1, delta * 2)
     );
   });
