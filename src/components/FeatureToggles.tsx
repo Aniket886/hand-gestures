@@ -15,6 +15,7 @@ export interface FeatureFlags {
 interface FeatureTogglesProps {
   flags: FeatureFlags;
   onChange: (flags: FeatureFlags) => void;
+  variant?: "card" | "bar";
 }
 
 const TOGGLES: {
@@ -35,9 +36,34 @@ const TOGGLES: {
   { key: "voiceEnabled", label: "Voice", iconOn: Mic, iconOff: MicOff, group: "feedback" },
 ];
 
-const FeatureToggles = ({ flags, onChange }: FeatureTogglesProps) => {
+const FeatureToggles = ({ flags, onChange, variant = "card" }: FeatureTogglesProps) => {
   const toggle = (key: keyof FeatureFlags) =>
     onChange({ ...flags, [key]: !flags[key] });
+
+  if (variant === "bar") {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {TOGGLES.map(({ key, label, iconOn, iconOff }) => {
+          const active = flags[key];
+          const Icon = active ? iconOn : iconOff;
+          return (
+            <button
+              key={key}
+              onClick={() => toggle(key)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider transition-all duration-200 ${
+                active
+                  ? "bg-primary/10 border border-primary/30 text-primary"
+                  : "bg-secondary/30 border border-transparent text-muted-foreground line-through opacity-60"
+              }`}
+            >
+              <Icon className="w-3 h-3" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   const renderGroup = (group: "features" | "feedback", title: string) => (
     <div>
