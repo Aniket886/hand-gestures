@@ -7,6 +7,7 @@ import { ArcProvider } from "@/contexts/ArcContext";
 import Index from "./pages/Index.tsx";
 import Presentation from "./pages/Presentation.tsx";
 import PlayCanvas from "./pages/PlayCanvas.tsx";
+import SpatialStudio from "./pages/SpatialStudio.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -18,13 +19,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <ArcProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/present" element={<Presentation />} />
-            <Route path="/play" element={<PlayCanvas />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/present" element={<Presentation />} />
+          <Route path="/play" element={<PlayCanvas />} />
+          <Route path="/spatial" element={<SpatialStudio />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
         </ArcProvider>
       </BrowserRouter>
     </TooltipProvider>
