@@ -141,6 +141,14 @@ interface HandednessSmoothingState {
   candidateSince: number;
 }
 
+interface HandTrackSlot {
+  center: { x: number; y: number };
+  lastSeen: number;
+}
+
+const TRACK_SLOT_KEYS = ["slot0", "slot1"] as const;
+const TRACK_MATCH_DISTANCE = 0.22;
+
 function inferHandednessFromLandmarks(landmarks: any[]): { label: HandednessLabel; confidence: number } {
   const thumb = landmarks[4];
   const pinkyMcp = landmarks[17];
@@ -152,6 +160,29 @@ function inferHandednessFromLandmarks(landmarks: any[]): { label: HandednessLabe
     label: delta <= 0 ? "Right" : "Left",
     confidence,
   };
+}
+
+function getHandCenter(landmarks: any[]) {
+  const indices = [0, 5, 9, 13, 17];
+  const sum = indices.reduce(
+    (acc, index) => {
+      acc.x += landmarks[index].x;
+      acc.y += landmarks[index].y;
+      return acc;
+    },
+    { x: 0, y: 0 }
+  );
+
+  return {
+    x: sum.x / indices.length,
+    y: sum.y / indices.length,
+  };
+}
+
+function dist2D(a: { x: number; y: number }, b: { x: number; y: number }) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 function isFingerUp(landmarks: any[], tip: number, pip: number, wrist: number): boolean {
@@ -250,7 +281,8 @@ export function useHandTracking(
   gestureActionRef.current = onGestureAction;
   const tuningRef = useRef<TrackingPreferences>({ ...DEFAULT_TUNING, ...(tuning ?? {}) });
   tuningRef.current = { ...DEFAULT_TUNING, ...(tuning ?? {}) };
-  const handednessStateRef = useRef<Record<number, HandednessSmoothingState>>({});
+  const handednessStateRef = useRef<Record<string, HandednessSmoothingState>>({});
+  const handTrackSlotsRef = useRef<Partial<Record<(typeof TRACK_SLOT_KEYS)[number], HandTrackSlot>>>({});
   const [calibration, setCalibration] = useState<HandTrackingCalibrationState>({
     baselineReferencePx: null,
     currentReferencePx: null,
@@ -273,7 +305,7 @@ export function useHandTracking(
 
   const resolveHandedness = useCallback(
     (
-      handIndex: number,
+      trackKey: string,
       landmarks: any[],
       modelLabel: string | undefined,
       modelScore: number | undefined,
@@ -291,9 +323,9 @@ export function useHandTracking(
       const candidateConfidence =
         modelResolved && candidateLabel === modelResolved ? modelConfidence : inferred.confidence;
 
-      const previous = handednessStateRef.current[handIndex];
+      const previous = handednessStateRef.current[trackKey];
       if (!previous) {
-        handednessStateRef.current[handIndex] = {
+        handednessStateRef.current[trackKey] = {
           stable: candidateLabel,
           candidate: null,
           candidateSince: timestamp,
@@ -384,10 +416,7 @@ export function useHandTracking(
   }, []);
 
   // Landmark smoothing (EMA) per handedness to reduce jitter before classification/drawing.
-  const smoothedLandmarksRef = useRef<Record<string, { x: number; y: number; z: number }[] | null>>({
-    Left: null,
-    Right: null,
-  });
+  const smoothedLandmarksRef = useRef<Record<string, { x: number; y: number; z: number }[] | null>>({});
 
   const smoothLandmarks = useCallback((raw: any[], key: string) => {
     const prev = smoothedLandmarksRef.current[key];
@@ -407,6 +436,64 @@ export function useHandTracking(
 
     smoothedLandmarksRef.current[key] = next;
     return next;
+  }, []);
+
+  const assignTrackKeys = useCallback((rawHands: any[][], timestamp: number) => {
+    if (rawHands.length === 0) return [] as string[];
+
+    const centers = rawHands.map((landmarks) => getHandCenter(landmarks));
+    const assigned = new Array(rawHands.length).fill("") as string[];
+    const usedSlots = new Set<string>();
+
+    const existingSlots = TRACK_SLOT_KEYS.filter((slotKey) => {
+      const slot = handTrackSlotsRef.current[slotKey];
+      return slot && timestamp - slot.lastSeen < 1000;
+    });
+
+    for (let handIndex = 0; handIndex < rawHands.length; handIndex++) {
+      let bestSlot = "";
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      for (const slotKey of existingSlots) {
+        if (usedSlots.has(slotKey)) continue;
+        const slot = handTrackSlotsRef.current[slotKey];
+        if (!slot) continue;
+        const distance = dist2D(slot.center, centers[handIndex]);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestSlot = slotKey;
+        }
+      }
+
+      if (bestSlot && bestDistance <= TRACK_MATCH_DISTANCE) {
+        assigned[handIndex] = bestSlot;
+        usedSlots.add(bestSlot);
+      }
+    }
+
+    const unassignedHands = assigned
+      .map((value, index) => ({ value, index }))
+      .filter((item) => !item.value)
+      .map((item) => item.index)
+      .sort((left, right) => centers[left].x - centers[right].x);
+
+    const freeSlots = TRACK_SLOT_KEYS.filter((slotKey) => !usedSlots.has(slotKey));
+    for (let index = 0; index < unassignedHands.length; index++) {
+      const handIndex = unassignedHands[index];
+      const slotKey = freeSlots[index] || TRACK_SLOT_KEYS[index] || TRACK_SLOT_KEYS[0];
+      assigned[handIndex] = slotKey;
+      usedSlots.add(slotKey);
+    }
+
+    for (let handIndex = 0; handIndex < rawHands.length; handIndex++) {
+      const slotKey = assigned[handIndex] as (typeof TRACK_SLOT_KEYS)[number];
+      handTrackSlotsRef.current[slotKey] = {
+        center: centers[handIndex],
+        lastSeen: timestamp,
+      };
+    }
+
+    return assigned;
   }, []);
 
   const start = useCallback(async () => {
@@ -470,19 +557,21 @@ export function useHandTracking(
         let primaryGesture: GestureResult | null = null;
         let writingTip: { x: number; y: number } | null = null;
         let isWriting = false;
+        const trackKeys = assignTrackKeys(results.multiHandLandmarks as any[][], now);
 
         for (let h = 0; h < handCount; h++) {
           const rawLandmarks = results.multiHandLandmarks[h];
+          const trackKey = trackKeys[h] || `slot${h}`;
           const modelHandedness = results.multiHandedness?.[h];
           const resolvedHandedness = resolveHandedness(
-            h,
+            trackKey,
             rawLandmarks as any,
             modelHandedness?.label,
             modelHandedness?.score,
             now
           );
           const handedness = resolvedHandedness.label;
-          const landmarks = smoothLandmarks(rawLandmarks as any, handedness);
+          const landmarks = smoothLandmarks(rawLandmarks as any, trackKey);
           const colors = HAND_COLORS[handedness] || HAND_COLORS.Right;
 
           const shouldDraw = drawOverlayRef ? drawOverlayRef.current : true;
@@ -718,8 +807,7 @@ export function useHandTracking(
         stableGestureRef.current = null;
         candidateGestureRef.current = null;
         noneFramesRef.current = 0;
-        smoothedLandmarksRef.current.Left = null;
-        smoothedLandmarksRef.current.Right = null;
+        smoothedLandmarksRef.current = {};
         setState((s) => ({
           ...s,
           gesture: null,
@@ -795,8 +883,7 @@ export function useHandTracking(
     stableGestureRef.current = null;
     candidateGestureRef.current = null;
     noneFramesRef.current = 0;
-    smoothedLandmarksRef.current.Left = null;
-    smoothedLandmarksRef.current.Right = null;
+    smoothedLandmarksRef.current = {};
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((t) => t.stop());
@@ -804,6 +891,7 @@ export function useHandTracking(
     }
     resetSwipeHistory();
     handednessStateRef.current = {};
+    handTrackSlotsRef.current = {};
   }, [videoRef]);
 
   const stop = useCallback(() => {
