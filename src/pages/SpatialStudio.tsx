@@ -161,7 +161,7 @@ const SpatialStudio = () => {
           </div>
 
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-            <SpatialScene mode={mode} objects={objects} gestures={gestures} onObjectsChange={setObjects} onResetSolar={resetSolar} />
+            <SpatialScene mode={mode} objects={objects} interaction={interaction} gestures={gestures} onResetSolar={resetSolar} />
           </motion.div>
         </div>
       </main>
