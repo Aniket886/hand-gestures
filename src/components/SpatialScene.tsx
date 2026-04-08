@@ -12,6 +12,80 @@ interface SpatialSceneProps {
   onResetSolar: () => void;
 }
 
+function HandGhost({ gestures }: Pick<SpatialSceneProps, "gestures">) {
+  const ref = useRef<THREE.Group>(null);
+
+  useFrame((_, delta) => {
+    if (!ref.current || !gestures.primaryPoint) return;
+    ref.current.position.lerp(
+      new THREE.Vector3(
+        gestures.primaryPoint.x,
+        gestures.primaryPoint.y,
+        gestures.primaryPoint.z
+      ),
+      Math.min(1, delta * 10)
+    );
+  });
+
+  if (!gestures.primaryPoint) return null;
+
+  const palmOpacity = gestures.primaryPinch ? 0.5 : 0.28;
+  const fingerOpacity = gestures.primaryPinch ? 0.8 : 0.45;
+
+  return (
+    <group ref={ref}>
+      <mesh>
+        <sphereGeometry args={[0.18, 20, 20]} />
+        <meshBasicMaterial color="#4cc9f0" transparent opacity={palmOpacity} />
+      </mesh>
+
+      <mesh position={[0.12, 0.14, 0]}>
+        <sphereGeometry args={[0.06, 16, 16]} />
+        <meshBasicMaterial color="#90e0ef" transparent opacity={fingerOpacity} />
+      </mesh>
+      <mesh position={[0.05, 0.28, 0]}>
+        <sphereGeometry args={[0.05, 16, 16]} />
+        <meshBasicMaterial color="#90e0ef" transparent opacity={fingerOpacity} />
+      </mesh>
+      <mesh position={[-0.03, 0.3, 0]}>
+        <sphereGeometry args={[0.05, 16, 16]} />
+        <meshBasicMaterial color="#90e0ef" transparent opacity={fingerOpacity} />
+      </mesh>
+      <mesh position={[-0.1, 0.24, 0]}>
+        <sphereGeometry args={[0.045, 16, 16]} />
+        <meshBasicMaterial color="#90e0ef" transparent opacity={fingerOpacity} />
+      </mesh>
+      <mesh position={[-0.15, 0.15, 0]}>
+        <sphereGeometry args={[0.04, 16, 16]} />
+        <meshBasicMaterial color="#90e0ef" transparent opacity={fingerOpacity} />
+      </mesh>
+
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            array={new Float32Array([
+              0, 0, 0,
+              0.12, 0.14, 0,
+              0, 0, 0,
+              0.05, 0.28, 0,
+              0, 0, 0,
+              -0.03, 0.3, 0,
+              0, 0, 0,
+              -0.1, 0.24, 0,
+              0, 0, 0,
+              -0.15, 0.15, 0,
+            ])}
+            count={10}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#4cc9f0" transparent opacity={0.4} />
+      </line>
+    </group>
+  );
+}
+
 function SpatialObjectNode({
   object,
   isSolar,
@@ -60,7 +134,7 @@ function SpatialObjectNode({
   );
 }
 
-function SceneContent({ mode, objects, interaction }: Pick<SpatialSceneProps, "mode" | "objects" | "interaction">) {
+function SceneContent({ mode, objects, interaction, gestures }: Pick<SpatialSceneProps, "mode" | "objects" | "interaction" | "gestures">) {
   useFrame((state, delta) => {
     const baseDistance = mode === "solar" ? 18 : mode === "spatial" ? 7 : 8.5;
     state.camera.position.lerp(
@@ -80,6 +154,7 @@ function SceneContent({ mode, objects, interaction }: Pick<SpatialSceneProps, "m
       {objects.map((object) => (
         <SpatialObjectNode key={object.id} object={object} isSolar={mode === "solar"} sceneScale={interaction.sceneScale} />
       ))}
+      <HandGhost gestures={gestures} />
       <OrbitControls enablePan enableZoom enableRotate makeDefault />
     </>
   );
@@ -95,7 +170,7 @@ export function SpatialScene({ mode, objects, interaction, gestures, onResetSola
   return (
     <div className="relative h-[620px] w-full rounded-2xl overflow-hidden border border-border bg-[#070b14]">
       <Canvas camera={{ position: [0, 1.8, 9], fov: 48 }} shadows>
-        <SceneContent mode={mode} objects={objects} interaction={interaction} />
+        <SceneContent mode={mode} objects={objects} interaction={interaction} gestures={gestures} />
       </Canvas>
       <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 pointer-events-none">
         <div className="bg-card/75 backdrop-blur-xl border border-border rounded-xl px-4 py-3 max-w-[420px]">
