@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { HandData } from "@/hooks/useHandTracking";
 import type { SpatialGestureState, Vec3Like } from "@/lib/spatialTypes";
 
@@ -13,9 +13,19 @@ function pointFromHand(hand: HandData | undefined): Vec3Like | null {
   if (!hand?.landmarks?.[8]) return null;
   const tip = hand.landmarks[8];
   return {
-    x: -(tip.x - 0.5) * 8,
-    y: -(tip.y - 0.5) * 5,
-    z: (tip.z ?? 0) * 8,
+    x: -(tip.x - 0.5) * 12,
+    y: -(tip.y - 0.5) * 7,
+    z: (tip.z ?? 0) * 10,
+  };
+}
+
+function smoothPoint(previous: Vec3Like | null, next: Vec3Like | null, alpha: number) {
+  if (!next) return null;
+  if (!previous) return next;
+  return {
+    x: previous.x + (next.x - previous.x) * alpha,
+    y: previous.y + (next.y - previous.y) * alpha,
+    z: previous.z + (next.z - previous.z) * alpha,
   };
 }
 
@@ -25,11 +35,16 @@ function isPinching(hand: HandData | undefined) {
 }
 
 export function useSpatialGestures(hands: HandData[]): SpatialGestureState {
+  const smoothedPrimaryRef = useRef<Vec3Like | null>(null);
+  const smoothedSecondaryRef = useRef<Vec3Like | null>(null);
+
   return useMemo(() => {
     const primaryHand = hands[0];
     const secondaryHand = hands[1];
-    const primaryPoint = pointFromHand(primaryHand);
-    const secondaryPoint = pointFromHand(secondaryHand);
+    const primaryPoint = smoothPoint(smoothedPrimaryRef.current, pointFromHand(primaryHand), 0.32);
+    const secondaryPoint = smoothPoint(smoothedSecondaryRef.current, pointFromHand(secondaryHand), 0.32);
+    smoothedPrimaryRef.current = primaryPoint;
+    smoothedSecondaryRef.current = secondaryPoint;
 
     return {
       primaryPinch: isPinching(primaryHand),
