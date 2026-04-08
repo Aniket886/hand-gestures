@@ -95,7 +95,7 @@ const SpatialStudio = () => {
       </header>
 
       <main className="container py-4 flex-1 space-y-4">
-        <div className="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] gap-4">
           <div className="space-y-4">
             <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
               <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Modes</p>
@@ -125,7 +125,7 @@ const SpatialStudio = () => {
               <p className="font-mono text-xs text-foreground/80">{modeSummary}</p>
             </div>
 
-            <div className="relative bg-card border border-border rounded-2xl overflow-hidden aspect-[4/3]">
+            <div className="relative bg-card border border-border rounded-2xl overflow-hidden aspect-[4/3] min-h-[360px]">
               <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover transform -scale-x-100" playsInline muted />
               <canvas ref={canvasRef} className="absolute inset-0 w-full h-full transform -scale-x-100" />
               {!isActive && !isLoading && (
