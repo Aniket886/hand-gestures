@@ -16,6 +16,7 @@ import AirWritingCanvas from "@/components/AirWritingCanvas";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2 } from "lucide-react";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -297,6 +298,8 @@ const Index = () => {
         onRemoveCustom={removeCustomGesture}
         onReset={resetToDefaults}
       />
+
+      <Footer />
     </div>
   );
 };

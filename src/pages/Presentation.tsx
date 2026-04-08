@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Maximize, Minimize } from "lucide-react";
+import Footer from "@/components/Footer";
 
 const slides = [
   {
@@ -181,6 +182,8 @@ const Presentation = () => {
           <span className="font-mono text-[10px] text-muted-foreground">Press ESC to exit</span>
         </motion.div>
       )}
+
+      {!isFullscreen && <Footer />}
     </div>
   );
 };

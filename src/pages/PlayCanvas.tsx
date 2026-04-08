@@ -7,6 +7,7 @@ import BubblePop from "@/components/games/BubblePop";
 import GestureMatch from "@/components/games/GestureMatch";
 import CatchStar from "@/components/games/CatchStar";
 import { Camera, CameraOff, ArrowLeft, Gamepad2 } from "lucide-react";
+import Footer from "@/components/Footer";
 
 type GameMode = "bubble" | "gesture" | "star";
 
@@ -241,6 +242,7 @@ const PlayCanvas = () => {
           )}
         </motion.div>
       </div>
+      <Footer />
     </div>
   );
 };
