@@ -1,6 +1,6 @@
-# ✋ Hand Gesture Recognition & Interaction Platform
+# ArcMotion
 
-A real-time hand gesture recognition web application built with **React**, **MediaPipe**, and **face-api.js**. Control presentations, draw in the air, play gesture-based games, and measure distances between your fingertips — all through your webcam.
+A real-time gesture + voice control web application built with **React**, **MediaPipe**, **face-api.js**, and an "Arc" voice assistant. Control presentations, draw in the air, play gesture-based games, create custom gestures, and more — all through your webcam.
 
 🔗 **Live Demo**: [hand-gestures.app](https://hand-gestures-lovat.vercel.app)
 

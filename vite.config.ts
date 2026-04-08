@@ -20,9 +20,9 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt", "apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
-        name: "GesturePresenter",
-        short_name: "Gestures",
-        description: "Hand gesture recognition platform with real-time tracking and interaction.",
+        name: "ArcMotion",
+        short_name: "ArcMotion",
+        description: "Gesture + voice control platform with real-time hand tracking, custom gestures, and an Arc assistant.",
         theme_color: "#0c1118",
         background_color: "#0c1118",
         display: "standalone",

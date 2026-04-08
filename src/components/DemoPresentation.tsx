@@ -7,7 +7,7 @@ interface DemoPresentationProps {
 
 const slides = [
   {
-    title: "Welcome to GesturePresenter",
+    title: "Welcome to ArcMotion",
     subtitle: "Control your presentations with hand gestures",
     content: "Use your webcam to navigate slides, pause, and interact — no clicker needed.",
     accent: "hsl(187, 100%, 50%)",

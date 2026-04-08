@@ -262,10 +262,10 @@ const Index = () => {
             </div>
             <div>
               <h1 className="font-mono text-sm font-bold text-foreground tracking-tight">
-                GesturePresenter
+                ArcMotion
               </h1>
               <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
-                Hand Gesture Recognition
+                Gesture + Voice Control
               </p>
             </div>
           </div>
