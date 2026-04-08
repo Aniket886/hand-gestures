@@ -1,6 +1,6 @@
 // Gesture recognition from MediaPipe hand landmarks
 
-export type GestureType =
+export type BuiltInGestureType =
   | "open_palm"
   | "fist"
   | "pointing"
@@ -22,6 +22,8 @@ export type GestureType =
   | "swipe_right"
   | "none";
 
+export type GestureType = BuiltInGestureType | `custom_${string}`;
+
 export interface GestureResult {
   gesture: GestureType;
   confidence: number;
@@ -30,7 +32,7 @@ export interface GestureResult {
   emoji: string;
 }
 
-export const GESTURE_MAP: Record<GestureType, { label: string; action: string; emoji: string }> = {
+export const GESTURE_MAP: Record<BuiltInGestureType, { label: string; action: string; emoji: string }> = {
   open_palm: { label: "Open Palm", action: "Pause / Stop", emoji: "✋" },
   fist: { label: "Fist", action: "Grab / Hold", emoji: "✊" },
   pointing: { label: "Point Up", action: "Next Slide →", emoji: "☝️" },

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { classifyGesture, detectSwipe, resetSwipeHistory, type GestureResult, type GestureType } from "@/lib/gestures";
 import type { TrackingPreferences } from "@/hooks/useTrackingPreferences";
+import { matchCustomGesture, type CustomGestureProfile } from "@/lib/customGestures";
 
 type Hands = any;
 type Results = any;
@@ -206,7 +207,8 @@ export function useHandTracking(
   drawOverlayRef?: React.MutableRefObject<boolean>,
   drawStringRef?: React.MutableRefObject<boolean>,
   drawMeasureRef?: React.MutableRefObject<boolean>,
-  tuning?: Partial<TrackingPreferences>
+  tuning?: Partial<TrackingPreferences>,
+  customGestureProfiles: CustomGestureProfile[] = []
 ) {
   const [state, setState] = useState<HandTrackingState>({
     isLoading: false,
@@ -500,7 +502,12 @@ export function useHandTracking(
             ctx.shadowBlur = 0;
           }
 
-          const gesture = classifyGesture(landmarks as any);
+          const builtInGesture = classifyGesture(landmarks as any);
+          const customGesture = matchCustomGesture(landmarks as any, customGestureProfiles);
+          const gesture =
+            customGesture && customGesture.confidence > builtInGesture.confidence
+              ? customGesture
+              : builtInGesture;
           handsData.push({
             landmarks: landmarks as any,
             gesture,
@@ -740,7 +747,7 @@ export function useHandTracking(
     animId = requestAnimationFrame(processFrame);
 
     cameraRef.current = { stop: () => cancelAnimationFrame(animId) };
-  }, [videoRef, canvasRef, resolveHandedness]);
+  }, [videoRef, canvasRef, resolveHandedness, customGestureProfiles]);
 
   const cleanup = useCallback(() => {
     try { cameraRef.current?.stop(); } catch (_) {}
