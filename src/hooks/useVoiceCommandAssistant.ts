@@ -233,6 +233,7 @@ export function useVoiceCommandAssistant({
   const armedUntilRef = useRef(0);
   const [armedUntilMs, setArmedUntilMs] = useState(0);
   const lastProcessedRef = useRef<string>("");
+  const lastWakeAckAtRef = useRef(0);
 
   const wakeWords = useMemo(() => {
     const all = [wakePhrase, ...wakeAliases].map((w) => normalizeTranscript(w)).filter(Boolean);
@@ -256,30 +257,28 @@ export function useVoiceCommandAssistant({
     recognitionRef.current = recognition;
 
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
-      const startIndex = typeof event.resultIndex === "number" ? event.resultIndex : 0;
-      let transcript = "";
+      let fullTranscript = "";
       let sawFinal = false;
-      for (let i = startIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
-        const chunk = String(result?.[0]?.transcript || "");
+        const chunk = String(result?.[0]?.transcript || "").trim();
         if (!chunk) continue;
-        transcript = chunk;
+        fullTranscript = fullTranscript ? `${fullTranscript} ${chunk}` : chunk;
         if (result?.isFinal) sawFinal = true;
       }
-      if (!transcript) return;
+      if (!fullTranscript) return;
 
-      // Avoid re-processing repeated interim transcripts.
-      const normalizedLatest = normalizeTranscript(transcript);
-      if (normalizedLatest && normalizedLatest === lastProcessedRef.current && !sawFinal) {
+      const normalizedFull = normalizeTranscript(fullTranscript);
+      if (normalizedFull && normalizedFull === lastProcessedRef.current && !sawFinal) {
         return;
       }
-      if (normalizedLatest) lastProcessedRef.current = normalizedLatest;
+      if (normalizedFull) lastProcessedRef.current = normalizedFull;
 
-      setLastHeard(transcript.trim());
+      setLastHeard(fullTranscript.trim());
       const now = Date.now();
 
       const interpreted = interpretTranscript({
-        transcript,
+        transcript: fullTranscript,
         nowMs: now,
         armedUntilMs: armedUntilRef.current,
         wakeWords,
@@ -292,8 +291,11 @@ export function useVoiceCommandAssistant({
 
       if (interpreted.isWakeOnly) {
         setLastResponse("Yes?");
-        // Speak only once per wake, not on every interim chunk.
-        if (sawFinal) speak("Yes?");
+        // Acknowledge wake once per short interval (interim results can repeat wake).
+        if (now - lastWakeAckAtRef.current > 1200) {
+          lastWakeAckAtRef.current = now;
+          speak("Yes?");
+        }
         return;
       }
 
@@ -332,6 +334,10 @@ export function useVoiceCommandAssistant({
 
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
       const code = event?.error || "unknown";
+      if (code === "aborted") {
+        // Common during start/stop transitions or re-initialization; don't show as a user error.
+        return;
+      }
       if (code === "not-allowed" || code === "service-not-allowed") {
         manualStopRef.current = true;
         recognition.stop();
