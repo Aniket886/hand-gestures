@@ -16,6 +16,12 @@ function randomId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function isFingerExtended(landmarks: any[], tip: number, pip: number, wrist: number) {
+  const tipDistance = Math.hypot(landmarks[tip].x - landmarks[wrist].x, landmarks[tip].y - landmarks[wrist].y);
+  const pipDistance = Math.hypot(landmarks[pip].x - landmarks[wrist].x, landmarks[pip].y - landmarks[wrist].y);
+  return tipDistance > pipDistance * 1.08;
+}
+
 function distance3D(a: Vec3Like, b: Vec3Like) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
@@ -23,7 +29,7 @@ function distance3D(a: Vec3Like, b: Vec3Like) {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-function normalizeStroke(points: SpatialStrokePoint[]) {
+export function normalizeStroke(points: SpatialStrokePoint[]) {
   if (!points.length) return points;
   const minX = Math.min(...points.map((point) => point.x));
   const maxX = Math.max(...points.map((point) => point.x));
@@ -31,35 +37,28 @@ function normalizeStroke(points: SpatialStrokePoint[]) {
   const maxY = Math.max(...points.map((point) => point.y));
   const width = Math.max(maxX - minX, 1);
   const height = Math.max(maxY - minY, 1);
+  const dominant = Math.max(width, height);
+  const clampScale = dominant > 0 ? Math.min(1, 220 / dominant) : 1;
 
   return points.map((point) => ({
-    x: ((point.x - minX) / width - 0.5) * 3,
-    y: -((point.y - minY) / height - 0.5) * 2.2,
+    x: ((((point.x - minX) * clampScale) / Math.max(width * clampScale, 1)) - 0.5) * 1.45,
+    y: -((((point.y - minY) * clampScale) / Math.max(height * clampScale, 1)) - 0.5) * 1.15,
   }));
 }
 
-function isDrawingHand(hand: HandData) {
+export function isDrawingHand(hand: HandData) {
   const thumb = hand.landmarks?.[4];
   const index = hand.landmarks?.[8];
-  if (!thumb || !index) return false;
-  return Math.hypot(index.x - thumb.x, index.y - thumb.y) > 0.04;
-}
+  const landmarks = hand.landmarks;
+  if (!thumb || !index || !landmarks?.length) return false;
 
-function toPointerPoint(hand: HandData | undefined): Vec3Like | null {
-  const tip = hand?.landmarks?.[8];
-  if (!tip) return null;
-  return {
-    x: (tip.x - 0.5) * 8,
-    y: -(tip.y - 0.5) * 5,
-    z: (tip.z ?? 0) * 8,
-  };
-}
+  const indexExtended = isFingerExtended(landmarks, 8, 6, 0);
+  const middleExtended = isFingerExtended(landmarks, 12, 10, 0);
+  const ringExtended = isFingerExtended(landmarks, 16, 14, 0);
+  const pinkyExtended = isFingerExtended(landmarks, 20, 18, 0);
+  const pinchGap = Math.hypot(index.x - thumb.x, index.y - thumb.y);
 
-function isPinching(hand: HandData | undefined) {
-  const thumb = hand?.landmarks?.[4];
-  const index = hand?.landmarks?.[8];
-  if (!thumb || !index) return false;
-  return Math.hypot(index.x - thumb.x, index.y - thumb.y, (index.z ?? 0) - (thumb.z ?? 0)) < 0.065;
+  return indexExtended && !middleExtended && !ringExtended && !pinkyExtended && pinchGap > 0.05;
 }
 
 export function useSpatialInteractionController(hands: HandData[]) {
@@ -77,6 +76,10 @@ export function useSpatialInteractionController(hands: HandData[]) {
 
   const pinchScaleStartRef = useRef<number | null>(null);
   const grabbedOffsetRef = useRef<Vec3Like | null>(null);
+  const previousPrimaryPinchRef = useRef(false);
+  const selectedObjectIdRef = useRef<string | null>(null);
+  const grabbedObjectIdRef = useRef<string | null>(null);
+  const interactionModeRef = useRef<SpatialInteractionState["mode"]>("none");
 
   const gestures = useSpatialGestures(hands);
 
@@ -115,7 +118,20 @@ export function useSpatialInteractionController(hands: HandData[]) {
   useEffect(() => {
     if (mode === "solar") {
       setObjects(SOLAR_SYSTEM_OBJECTS.map((object) => ({ ...object })));
-      setInteraction((previous) => ({ ...previous, hoveredObjectId: null, selectedObjectId: null, grabbedObjectId: null, mode: "none" }));
+      setInteraction((previous) => ({
+        ...previous,
+        hoveredObjectId: null,
+        selectedObjectId: null,
+        grabbedObjectId: null,
+        mode: "none",
+        sceneScale: 0.9,
+        sceneZoom: 1,
+      }));
+      selectedObjectIdRef.current = null;
+      grabbedObjectIdRef.current = null;
+      interactionModeRef.current = "none";
+      pinchScaleStartRef.current = null;
+      grabbedOffsetRef.current = null;
     }
   }, [mode]);
 
@@ -128,12 +144,12 @@ export function useSpatialInteractionController(hands: HandData[]) {
       kind: "drawing" as const,
       label: `Sketch ${index + 1}`,
       color: stroke.trackId === "slot1" ? "#f72585" : "#4cc9f0",
-      position: { x: index * 1.5 - ((readyStrokes.length - 1) * 0.75), y: 0, z: -1.8 },
+      position: { x: index * 1.2 - ((readyStrokes.length - 1) * 0.6), y: 0, z: -2.4 },
       rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 1, y: 1, z: 1 },
-      defaultPosition: { x: index * 1.5 - ((readyStrokes.length - 1) * 0.75), y: 0, z: -1.8 },
+      scale: { x: 0.85, y: 0.85, z: 0.85 },
+      defaultPosition: { x: index * 1.2 - ((readyStrokes.length - 1) * 0.6), y: 0, z: -2.4 },
       defaultRotation: { x: 0, y: 0, z: 0 },
-      defaultScale: { x: 1, y: 1, z: 1 },
+      defaultScale: { x: 0.85, y: 0.85, z: 0.85 },
       hovered: false,
       selected: false,
       grabbed: false,
@@ -150,6 +166,11 @@ export function useSpatialInteractionController(hands: HandData[]) {
       grabbedObjectId: null,
       mode: "none",
     }));
+    selectedObjectIdRef.current = null;
+    grabbedObjectIdRef.current = null;
+    interactionModeRef.current = "none";
+    pinchScaleStartRef.current = null;
+    grabbedOffsetRef.current = null;
     setMode("spatial");
   }, [draftStrokes]);
 
@@ -158,11 +179,26 @@ export function useSpatialInteractionController(hands: HandData[]) {
   const clearObjects = useCallback(() => {
     setObjects((previous) => previous.filter((object) => object.kind === "planet" || object.kind === "star"));
     setInteraction((previous) => ({ ...previous, hoveredObjectId: null, selectedObjectId: null, grabbedObjectId: null, mode: "none" }));
+    selectedObjectIdRef.current = null;
+    grabbedObjectIdRef.current = null;
+    interactionModeRef.current = "none";
   }, []);
 
   const resetSolar = useCallback(() => {
     setObjects(SOLAR_SYSTEM_OBJECTS.map((object) => ({ ...object })));
-    setInteraction((previous) => ({ ...previous, hoveredObjectId: null, selectedObjectId: null, grabbedObjectId: null, mode: "none" }));
+    setInteraction((previous) => ({
+      ...previous,
+      hoveredObjectId: null,
+      selectedObjectId: null,
+      grabbedObjectId: null,
+      mode: "none",
+      sceneScale: 0.9,
+      sceneZoom: 1,
+    }));
+    selectedObjectIdRef.current = null;
+    grabbedObjectIdRef.current = null;
+    interactionModeRef.current = "none";
+    pinchScaleStartRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -185,10 +221,13 @@ export function useSpatialInteractionController(hands: HandData[]) {
       }
     }
 
+    const pinchStarted = pinch && !previousPrimaryPinchRef.current;
+    const pinchEnded = !pinch && previousPrimaryPinchRef.current;
+
     setInteraction((previous) => {
       let next = { ...previous, hoveredObjectId };
 
-      if (pinch && hoveredObjectId && !previous.grabbedObjectId) {
+      if (pinchStarted && hoveredObjectId && !grabbedObjectIdRef.current) {
         const targetObject = objects.find((object) => object.id === hoveredObjectId);
         if (targetObject && pointer) {
           grabbedOffsetRef.current = {
@@ -197,28 +236,35 @@ export function useSpatialInteractionController(hands: HandData[]) {
             z: targetObject.position.z - pointer.z,
           };
         }
+        selectedObjectIdRef.current = hoveredObjectId;
+        grabbedObjectIdRef.current = hoveredObjectId;
+        interactionModeRef.current = "object";
         next = {
           ...next,
           selectedObjectId: hoveredObjectId,
           grabbedObjectId: hoveredObjectId,
           mode: "object",
         };
-      } else if (!pinch && previous.grabbedObjectId) {
+      } else if (pinchEnded && grabbedObjectIdRef.current) {
         grabbedOffsetRef.current = null;
+        grabbedObjectIdRef.current = null;
+        interactionModeRef.current = "none";
         next = {
           ...next,
           grabbedObjectId: null,
           mode: "none",
         };
       } else if (!pinch && !secondaryPinch && previous.mode === "scene") {
+        interactionModeRef.current = "none";
         next = {
           ...next,
           mode: "none",
         };
-      } else if (!previous.grabbedObjectId && pinch && secondaryPinch) {
+      } else if (!grabbedObjectIdRef.current && pinch && secondaryPinch) {
+        interactionModeRef.current = selectedObjectIdRef.current ? "object" : "scene";
         next = {
           ...next,
-          mode: previous.selectedObjectId ? "object" : "scene",
+          mode: selectedObjectIdRef.current ? "object" : "scene",
         };
       }
 
@@ -228,8 +274,8 @@ export function useSpatialInteractionController(hands: HandData[]) {
     setObjects((previousObjects) =>
       previousObjects.map((object) => {
         const isHovered = object.id === hoveredObjectId;
-        const isSelected = object.id === interaction.selectedObjectId || object.id === interaction.grabbedObjectId;
-        const isGrabbed = object.id === interaction.grabbedObjectId && pinch;
+        const isSelected = object.id === selectedObjectIdRef.current || object.id === grabbedObjectIdRef.current;
+        const isGrabbed = object.id === grabbedObjectIdRef.current && pinch;
 
         let nextObject: SpatialObject = {
           ...object,
@@ -255,10 +301,10 @@ export function useSpatialInteractionController(hands: HandData[]) {
           };
         }
 
-        if (interaction.selectedObjectId === object.id && interaction.mode === "object" && pinch && secondaryPinch && pinchDistance) {
+        if (selectedObjectIdRef.current === object.id && interactionModeRef.current === "object" && pinch && secondaryPinch && pinchDistance) {
           if (!pinchScaleStartRef.current) pinchScaleStartRef.current = pinchDistance;
           const ratio = pinchDistance / pinchScaleStartRef.current;
-          const nextScale = Math.max(0.2, Math.min(3.5, nextObject.scale.x * ratio));
+          const nextScale = Math.max(0.2, Math.min(2.2, nextObject.scale.x * ratio));
           nextObject = {
             ...nextObject,
             scale: { x: nextScale, y: nextScale, z: nextScale },
@@ -273,7 +319,8 @@ export function useSpatialInteractionController(hands: HandData[]) {
     if (!(pinch && secondaryPinch)) {
       pinchScaleStartRef.current = null;
     }
-  }, [gestures, interaction.grabbedObjectId, interaction.mode, interaction.selectedObjectId, mode, objects]);
+    previousPrimaryPinchRef.current = pinch;
+  }, [gestures, mode, objects]);
 
   useEffect(() => {
     if (mode === "draw") return;
@@ -290,8 +337,8 @@ export function useSpatialInteractionController(hands: HandData[]) {
 
     setInteraction((previous) => ({
       ...previous,
-      sceneScale: Math.max(0.65, Math.min(1.9, previous.sceneScale * ratio)),
-      sceneZoom: Math.max(0.65, Math.min(1.8, previous.sceneZoom * ratio)),
+      sceneScale: Math.max(0.75, Math.min(1.4, previous.sceneScale * ratio)),
+      sceneZoom: Math.max(0.8, Math.min(1.35, previous.sceneZoom * ratio)),
     }));
   }, [gestures.pinchDistance, gestures.primaryPinch, gestures.secondaryPinch, interaction.mode, mode]);
 
