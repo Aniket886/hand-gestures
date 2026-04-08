@@ -76,6 +76,10 @@ describe("Voice Assistant helpers", () => {
     expect(isQuestionLike("which planet is largest")).toBe(true);
     expect(isQuestionLike("can you explain jupiter")).toBe(true);
     expect(isQuestionLike("do you know the answer")).toBe(true);
+    expect(isQuestionLike("what is scientific name of dog")).toBe(true);
+    expect(isQuestionLike("nickname of dog")).toBe(true);
+    expect(isQuestionLike("full form of ai")).toBe(true);
+    expect(isQuestionLike("meaning of gravity")).toBe(true);
     expect(isQuestionLike("start tracking")).toBe(false);
     expect(isQuestionLike("random words")).toBe(false);
   });
