@@ -42,6 +42,28 @@ const SpatialStudio = () => {
     return "Explore and manipulate the interactive solar system in 360 degrees.";
   }, [mode]);
 
+  const modeHints = useMemo(() => {
+    if (mode === "draw") {
+      return [
+        "Writing pose = sketch with one index finger",
+        "Commit Drawing = convert sketch into 3D object",
+        "Clear Draft = discard unfinished stroke buffers",
+      ];
+    }
+    if (mode === "spatial") {
+      return [
+        "Pinch = grab / release selected object",
+        "Pinch + drag = move object in space",
+        "Two-hand pinch = scale selected object",
+      ];
+    }
+    return [
+      "Pinch a planet = grab and inspect it",
+      "Two-hand pinch with no selected planet = zoom scene",
+      "Orbit drag / mouse drag = 360 view, wheel = zoom",
+    ];
+  }, [mode]);
+
   return (
     <div className="min-h-screen bg-background grid-bg scanline flex flex-col">
       <header className="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-50">
@@ -163,6 +185,22 @@ const SpatialStudio = () => {
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
             <SpatialScene mode={mode} objects={objects} interaction={interaction} gestures={gestures} onResetSolar={resetSolar} />
           </motion.div>
+        </div>
+
+        <div className="bg-card/70 backdrop-blur-md border border-border rounded-2xl px-4 py-3 flex flex-wrap gap-3 items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Spatial Hints
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {modeHints.map((hint) => (
+              <span
+                key={hint}
+                className="px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 font-mono text-[10px] text-foreground/80"
+              >
+                {hint}
+              </span>
+            ))}
+          </div>
         </div>
       </main>
 
