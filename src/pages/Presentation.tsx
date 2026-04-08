@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Maximize, Minimize } from "lucide-react";
@@ -37,6 +37,19 @@ const Presentation = () => {
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const slideAreaRef = useRef<HTMLDivElement>(null);
+
+  // Laser pointer tracking
+  useEffect(() => {
+    const el = slideAreaRef.current;
+    if (!el) return;
+    const onMove = (e: MouseEvent) => {
+      el.style.setProperty("--laser-x", `${e.clientX}px`);
+      el.style.setProperty("--laser-y", `${e.clientY}px`);
+    };
+    el.addEventListener("mousemove", onMove);
+    return () => el.removeEventListener("mousemove", onMove);
+  }, []);
 
   const goNext = useCallback(() => setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1)), []);
   const goPrev = useCallback(() => setCurrentSlide((s) => Math.max(s - 1, 0)), []);
@@ -98,7 +111,8 @@ const Presentation = () => {
 
       {/* Slide area */}
       <div
-        className="flex-1 relative overflow-hidden cursor-none group"
+        ref={slideAreaRef}
+        className="flex-1 relative overflow-hidden group laser-cursor"
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const clickX = (e.clientX - rect.left) / rect.width;
