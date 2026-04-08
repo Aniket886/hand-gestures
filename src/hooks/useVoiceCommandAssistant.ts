@@ -28,9 +28,15 @@ interface SpeechRecognitionLike {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
+  maxAlternatives?: number;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
+  onstart?: (() => void) | null;
+  onaudiostart?: (() => void) | null;
+  onsoundstart?: (() => void) | null;
+  onspeechstart?: (() => void) | null;
+  onspeechend?: (() => void) | null;
   start: () => void;
   stop: () => void;
 }
@@ -41,10 +47,12 @@ interface SpeechRecognitionAlternativeLike {
 
 interface SpeechRecognitionResultLike {
   0: SpeechRecognitionAlternativeLike;
+  isFinal?: boolean;
 }
 
 interface SpeechRecognitionEventLike {
   results: ArrayLike<SpeechRecognitionResultLike>;
+  resultIndex?: number;
 }
 
 interface SpeechRecognitionErrorEventLike {
@@ -220,6 +228,7 @@ export function useVoiceCommandAssistant({
   onQueryRef.current = onQuery;
   const armedUntilRef = useRef(0);
   const [armedUntilMs, setArmedUntilMs] = useState(0);
+  const lastProcessedRef = useRef<string>("");
 
   const wakeWords = useMemo(() => {
     const all = [wakePhrase, ...wakeAliases].map((w) => normalizeTranscript(w)).filter(Boolean);
@@ -237,13 +246,31 @@ export function useVoiceCommandAssistant({
 
     const recognition = new RecognitionCtor();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = "en-US";
+    if (typeof recognition.maxAlternatives === "number") recognition.maxAlternatives = 3;
     recognitionRef.current = recognition;
 
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
-      const latest = event.results[event.results.length - 1];
-      const transcript = String(latest?.[0]?.transcript || "");
+      const startIndex = typeof event.resultIndex === "number" ? event.resultIndex : 0;
+      let transcript = "";
+      let sawFinal = false;
+      for (let i = startIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const chunk = String(result?.[0]?.transcript || "");
+        if (!chunk) continue;
+        transcript = chunk;
+        if (result?.isFinal) sawFinal = true;
+      }
+      if (!transcript) return;
+
+      // Avoid re-processing repeated interim transcripts.
+      const normalizedLatest = normalizeTranscript(transcript);
+      if (normalizedLatest && normalizedLatest === lastProcessedRef.current && !sawFinal) {
+        return;
+      }
+      if (normalizedLatest) lastProcessedRef.current = normalizedLatest;
+
       setLastHeard(transcript.trim());
       const now = Date.now();
 
@@ -261,13 +288,14 @@ export function useVoiceCommandAssistant({
 
       if (interpreted.isWakeOnly) {
         setLastResponse("Yes?");
-        speak("Yes?");
+        // Speak only once per wake, not on every interim chunk.
+        if (sawFinal) speak("Yes?");
         return;
       }
 
       if (interpreted.command) {
         setLastResponse(`Command: ${interpreted.command.id.replaceAll("_", " ")}`);
-        onCommand(interpreted.command);
+        if (sawFinal) onCommand(interpreted.command);
         return;
       }
 
@@ -277,10 +305,25 @@ export function useVoiceCommandAssistant({
       if (isWakeOrArmed && onQueryRef.current) {
         const prompt = interpreted.normalized;
         setLastResponse("Thinking...");
+        if (!sawFinal) return;
         void Promise.resolve(onQueryRef.current(prompt)).catch(() => {
           setLastResponse("Unable to answer right now.");
         });
       }
+    };
+
+    recognition.onstart = () => {
+      setError(null);
+      setLastResponse(`Listening for "${wakePhrase}"...`);
+    };
+    recognition.onaudiostart = () => {
+      setLastResponse("Mic active...");
+    };
+    recognition.onspeechstart = () => {
+      setLastResponse("Hearing speech...");
+    };
+    recognition.onspeechend = () => {
+      setLastResponse(`Listening for "${wakePhrase}"...`);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
