@@ -12,11 +12,13 @@ import type {
   Vec3Like,
 } from "@/lib/spatialTypes";
 
+type LandmarkPointLike = { x: number; y: number };
+
 function randomId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function isFingerExtended(landmarks: any[], tip: number, pip: number, wrist: number) {
+function isFingerExtended(landmarks: LandmarkPointLike[], tip: number, pip: number, wrist: number) {
   const tipDistance = Math.hypot(landmarks[tip].x - landmarks[wrist].x, landmarks[tip].y - landmarks[wrist].y);
   const pipDistance = Math.hypot(landmarks[pip].x - landmarks[wrist].x, landmarks[pip].y - landmarks[wrist].y);
   return tipDistance > pipDistance * 1.08;
