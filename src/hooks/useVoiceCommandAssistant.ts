@@ -20,6 +20,7 @@ interface VoiceAssistantOptions {
   wakePhrase?: string;
   wakeAliases?: string[];
   wakeWindowMs?: number;
+  recognitionLang?: string;
   onCommand: (command: VoiceCommand) => void;
   onQuery?: (prompt: string) => void | Promise<void>;
 }
@@ -203,6 +204,8 @@ export function interpretTranscript(args: {
 export function isQuestionLike(normalized: string): boolean {
   const cues = [
     "what",
+    "what is",
+    "what s",
     "who",
     "why",
     "how",
@@ -212,9 +215,16 @@ export function isQuestionLike(normalized: string): boolean {
     "can you",
     "do you know",
     "tell me",
+    "tell me about",
     "define",
     "explain",
     "meaning of",
+    "full form",
+    "scientific name",
+    "name of",
+    "nickname of",
+    "spell",
+    "say again",
   ];
   return cues.some((cue) => normalized.includes(cue));
 }
@@ -233,6 +243,7 @@ export function useVoiceCommandAssistant({
   wakePhrase = "arc",
   wakeAliases = ["arc", "ark", "are"],
   wakeWindowMs = 6000,
+  recognitionLang = "en-IN",
   onCommand,
   onQuery,
 }: VoiceAssistantOptions) {
@@ -271,7 +282,7 @@ export function useVoiceCommandAssistant({
     const recognition = new RecognitionCtor();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    recognition.lang = recognitionLang;
     if (typeof recognition.maxAlternatives === "number") recognition.maxAlternatives = 3;
     recognitionRef.current = recognition;
 
@@ -400,7 +411,7 @@ export function useVoiceCommandAssistant({
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, [wakeWords, wakeWindowMs]);
+  }, [recognitionLang, wakeWords, wakeWindowMs]);
 
   useEffect(() => {
     if (!armedUntilMs) return;

@@ -153,6 +153,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
     armedUntilRef.current = 0;
     pendingCommandRef.current = null;
     lastProcessedFinalRef.current = "";
+    lastAnsweredPromptRef.current = "";
   }, []);
 
   const clearRestartTimer = useCallback(() => {
@@ -271,7 +272,11 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         return;
       }
       await homeHandlersRef.current.startTracking?.();
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+        syncStatusFromState();
+      };
       await speakAndResume("Starting tracking.");
       return;
     }
@@ -283,7 +288,11 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         return;
       }
       await homeHandlersRef.current.stopTracking?.();
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+        syncStatusFromState();
+      };
       await speakAndResume("Stopping tracking.");
       return;
     }
@@ -295,7 +304,11 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         return;
       }
       const result = await homeHandlersRef.current.captureCalibration?.();
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+        syncStatusFromState();
+      };
       await speakAndResume(result ? "Calibration captured." : "Show one hand clearly, then try calibration again.");
       return;
     }
@@ -307,7 +320,11 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         return;
       }
       await presentationHandlersRef.current.nextSlide?.();
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+        syncStatusFromState();
+      };
       await speakAndResume("Next slide.");
       return;
     }
@@ -319,33 +336,53 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         return;
       }
       await presentationHandlersRef.current.prevSlide?.();
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+        syncStatusFromState();
+      };
       await speakAndResume("Previous slide.");
       return;
     }
 
     if (command.id === "open_presentation") {
       navigate("/present");
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+        syncStatusFromState();
+      };
       await speakAndResume("Opening presentation mode.");
       return;
     }
 
     if (command.id === "open_playground") {
       navigate("/play");
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+        syncStatusFromState();
+      };
       await speakAndResume("Opening playground mode.");
       return;
     }
 
     if (command.id === "go_home") {
       navigate("/");
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+        syncStatusFromState();
+      };
       await speakAndResume("Returning home.");
       return;
     }
 
-    speechEndCleanupRef.current = syncStatusFromState;
+    speechEndCleanupRef.current = () => {
+      clearInteractionState();
+      logArcEvent({ state: "listening", action: "state_reset_after_command", detail: command.id });
+      syncStatusFromState();
+    };
     await speakAndResume('Try "Arc start tracking", "Arc stop tracking", or ask a question.');
   }
   runCommandRef.current = runCommand;
@@ -365,11 +402,19 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
         const reply = res.ok ? (data?.text || "No answer.").trim() : data?.error ? `Error: ${data.error}` : "Unable to answer right now.";
         logArcEvent({ state: "querying", action: "query_success", transcript: prompt, detail: reply });
-        speechEndCleanupRef.current = syncStatusFromState;
+        speechEndCleanupRef.current = () => {
+          clearInteractionState();
+          logArcEvent({ state: "listening", action: "state_reset_after_query", detail: prompt });
+          syncStatusFromState();
+        };
         await speakAndResume(reply);
       } catch {
         logArcEvent({ state: "error", action: "query_failed", transcript: prompt });
-        speechEndCleanupRef.current = syncStatusFromState;
+        speechEndCleanupRef.current = () => {
+          clearInteractionState();
+          logArcEvent({ state: "listening", action: "state_reset_after_query", detail: prompt });
+          syncStatusFromState();
+        };
         await speakAndResume("Network error. Unable to reach Arc server.");
       }
     },
@@ -389,7 +434,8 @@ export function ArcProvider({ children }: { children: ReactNode }) {
     const recognition = new RecognitionCtor();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    recognition.lang = "en-IN";
+    logArcEvent({ state: "listening", action: "recognition_lang_en_in" });
     if (typeof recognition.maxAlternatives === "number") recognition.maxAlternatives = 3;
     recognitionRef.current = recognition;
 
@@ -456,17 +502,15 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       }
 
       if (isQuestionLike(actionable)) {
-        if (lastAnsweredPromptRef.current === actionable) {
-          clearInteractionState();
-          syncStatusFromState();
-          return;
-        }
-        lastAnsweredPromptRef.current = actionable;
+        logArcEvent({ state: "armed", action: "query_candidate", transcript: actionable });
         logArcEvent({ state: "armed", action: "question_detected", transcript: actionable });
+        lastAnsweredPromptRef.current = actionable;
+        logArcEvent({ state: "querying", action: "query_routed", transcript: actionable });
         void answerQueryRef.current?.(actionable);
         return;
       }
 
+      logArcEvent({ state: "armed", action: "query_rejected", transcript: actionable });
       logArcEvent({ state: "armed", action: "unknown_input", transcript: actionable });
       clearInteractionState();
       speechEndCleanupRef.current = syncStatusFromState;
@@ -499,7 +543,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
 
       recognitionHealthRef.current = "transient";
       logArcEvent({ state: "listening", action: "recognition_error_transient", detail: code });
-      setError(code ? `Voice error: ${code}` : "Voice recognition error");
+      setError(null);
     };
 
     recognition.onend = () => {
