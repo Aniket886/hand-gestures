@@ -13,7 +13,7 @@ function pointFromHand(hand: HandData | undefined): Vec3Like | null {
   if (!hand?.landmarks?.[8]) return null;
   const tip = hand.landmarks[8];
   return {
-    x: (tip.x - 0.5) * 8,
+    x: -(tip.x - 0.5) * 8,
     y: -(tip.y - 0.5) * 5,
     z: (tip.z ?? 0) * 8,
   };
