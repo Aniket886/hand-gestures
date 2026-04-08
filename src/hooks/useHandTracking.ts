@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { classifyGesture, detectSwipe, resetSwipeHistory, type GestureResult, type GestureType } from "@/lib/gestures";
+import type { TrackingPreferences } from "@/hooks/useTrackingPreferences";
 
 type Hands = any;
 type Results = any;
@@ -46,6 +47,7 @@ export interface HandData {
   landmarks: any[];
   gesture: GestureResult;
   handedness: string;
+  handednessConfidence: number;
 }
 
 export interface StringMeasurement {
@@ -66,6 +68,12 @@ export interface HandTrackingState {
   writingTip: { x: number; y: number } | null;
   isWriting: boolean;
   stringMeasurements: StringMeasurement[];
+}
+
+export interface HandTrackingCalibrationState {
+  baselineReferencePx: number | null;
+  currentReferencePx: number | null;
+  effectiveDistanceFactor: number;
 }
 
 const CONNECTIONS = [
@@ -89,6 +97,44 @@ const HAND_COLORS: Record<string, { line: string; dot: string; tip: string }> = 
     tip: "hsl(40, 90%, 55%)",
   },
 };
+
+const DEFAULT_TUNING: TrackingPreferences = {
+  handReferenceCm: 8.5,
+  cameraDistanceFactor: 1,
+  gestureConfidenceThreshold: 0.6,
+  actionDebounceMs: 1200,
+  handednessConfidenceThreshold: 0.75,
+  handednessDebounceMs: 220,
+};
+
+const NO_GESTURE: GestureResult = {
+  gesture: "none",
+  confidence: 0,
+  label: "No Gesture",
+  action: "-",
+  emoji: "?",
+};
+
+type HandednessLabel = "Left" | "Right";
+
+interface HandednessSmoothingState {
+  stable: HandednessLabel;
+  candidate: HandednessLabel | null;
+  candidateSince: number;
+}
+
+function inferHandednessFromLandmarks(landmarks: any[]): { label: HandednessLabel; confidence: number } {
+  const thumb = landmarks[4];
+  const pinkyMcp = landmarks[17];
+  if (!thumb || !pinkyMcp) return { label: "Right", confidence: 0.5 };
+
+  const delta = thumb.x - pinkyMcp.x;
+  const confidence = Math.min(1, Math.max(0.5, 0.5 + Math.abs(delta)));
+  return {
+    label: delta <= 0 ? "Right" : "Left",
+    confidence,
+  };
+}
 
 function isFingerUp(landmarks: any[], tip: number, pip: number, wrist: number): boolean {
   const tipD = Math.sqrt(
@@ -118,6 +164,8 @@ const STRING_COLORS = [
   "hsl(280, 80%, 65%)",
   "hsl(330, 90%, 60%)",
 ];
+
+const CALIBRATION_STORAGE_KEY = "gesture-presenter-calibration-baseline-px";
 
 async function createAndInitHands(
   locateFile: (file: string) => string,
@@ -157,7 +205,8 @@ export function useHandTracking(
   onGestureAction?: (gesture: GestureType) => void,
   drawOverlayRef?: React.MutableRefObject<boolean>,
   drawStringRef?: React.MutableRefObject<boolean>,
-  drawMeasureRef?: React.MutableRefObject<boolean>
+  drawMeasureRef?: React.MutableRefObject<boolean>,
+  tuning?: Partial<TrackingPreferences>
 ) {
   const [state, setState] = useState<HandTrackingState>({
     isLoading: false,
@@ -180,6 +229,80 @@ export function useHandTracking(
   const lastActionTime = useRef(0);
   const gestureActionRef = useRef(onGestureAction);
   gestureActionRef.current = onGestureAction;
+  const tuningRef = useRef<TrackingPreferences>({ ...DEFAULT_TUNING, ...(tuning ?? {}) });
+  tuningRef.current = { ...DEFAULT_TUNING, ...(tuning ?? {}) };
+  const handednessStateRef = useRef<Record<number, HandednessSmoothingState>>({});
+  const [calibration, setCalibration] = useState<HandTrackingCalibrationState>({
+    baselineReferencePx: null,
+    currentReferencePx: null,
+    effectiveDistanceFactor: 1,
+  });
+  const baselineReferencePxRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(CALIBRATION_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = Number(stored);
+      if (!Number.isFinite(parsed) || parsed <= 0) return;
+      baselineReferencePxRef.current = parsed;
+      setCalibration((prev) => ({ ...prev, baselineReferencePx: parsed }));
+    } catch {
+      // ignore storage hydration failures
+    }
+  }, []);
+
+  const resolveHandedness = useCallback(
+    (
+      handIndex: number,
+      landmarks: any[],
+      modelLabel: string | undefined,
+      modelScore: number | undefined,
+      timestamp: number
+    ): { label: HandednessLabel; confidence: number } => {
+      const tuned = tuningRef.current;
+      const modelResolved: HandednessLabel | null =
+        modelLabel === "Left" || modelLabel === "Right" ? modelLabel : null;
+      const modelConfidence = typeof modelScore === "number" ? modelScore : 0;
+      const inferred = inferHandednessFromLandmarks(landmarks);
+      const candidateLabel =
+        modelResolved && modelConfidence >= tuned.handednessConfidenceThreshold
+          ? modelResolved
+          : inferred.label;
+      const candidateConfidence =
+        modelResolved && candidateLabel === modelResolved ? modelConfidence : inferred.confidence;
+
+      const previous = handednessStateRef.current[handIndex];
+      if (!previous) {
+        handednessStateRef.current[handIndex] = {
+          stable: candidateLabel,
+          candidate: null,
+          candidateSince: timestamp,
+        };
+        return { label: candidateLabel, confidence: candidateConfidence };
+      }
+
+      if (candidateLabel === previous.stable) {
+        previous.candidate = null;
+        previous.candidateSince = timestamp;
+        return { label: previous.stable, confidence: candidateConfidence };
+      }
+
+      if (previous.candidate === candidateLabel) {
+        if (timestamp - previous.candidateSince >= tuned.handednessDebounceMs) {
+          previous.stable = candidateLabel;
+          previous.candidate = null;
+          previous.candidateSince = timestamp;
+        }
+      } else {
+        previous.candidate = candidateLabel;
+        previous.candidateSince = timestamp;
+      }
+
+      return { label: previous.stable, confidence: candidateConfidence };
+    },
+    []
+  );
 
   // Gesture stabilization to reduce frame-to-frame flicker (jitter/partial occlusion).
   const stableGestureRef = useRef<GestureResult | null>(null);
@@ -321,6 +444,7 @@ export function useHandTracking(
       }
 
       const handCount = results.multiHandLandmarks?.length || 0;
+      const tuned = tuningRef.current;
 
       if (handCount > 0) {
         const handsData: HandData[] = [];
@@ -330,7 +454,15 @@ export function useHandTracking(
 
         for (let h = 0; h < handCount; h++) {
           const rawLandmarks = results.multiHandLandmarks[h];
-          const handedness = results.multiHandedness?.[h]?.label || (h === 0 ? "Right" : "Left");
+          const modelHandedness = results.multiHandedness?.[h];
+          const resolvedHandedness = resolveHandedness(
+            h,
+            rawLandmarks as any,
+            modelHandedness?.label,
+            modelHandedness?.score,
+            now
+          );
+          const handedness = resolvedHandedness.label;
           const landmarks = smoothLandmarks(rawLandmarks as any, handedness);
           const colors = HAND_COLORS[handedness] || HAND_COLORS.Right;
 
@@ -369,7 +501,12 @@ export function useHandTracking(
           }
 
           const gesture = classifyGesture(landmarks as any);
-          handsData.push({ landmarks: landmarks as any, gesture, handedness });
+          handsData.push({
+            landmarks: landmarks as any,
+            gesture,
+            handedness,
+            handednessConfidence: resolvedHandedness.confidence,
+          });
 
           if (isWritingPose(landmarks as any)) {
             const indexTip = landmarks[8];
@@ -414,7 +551,11 @@ export function useHandTracking(
             ((wrist.x - mcp9.x) * canvas.width) ** 2 +
             ((wrist.y - mcp9.y) * canvas.height) ** 2
           );
-          const cmPerPx = refPx > 0 ? 8.5 / refPx : 0;
+          const baselinePx = baselineReferencePxRef.current;
+          const autoDistanceFactor =
+            baselinePx && refPx > 0 ? Math.min(1.6, Math.max(0.65, baselinePx / refPx)) : 1;
+          const effectiveDistanceFactor = tuned.cameraDistanceFactor * autoDistanceFactor;
+          const cmPerPx = refPx > 0 ? (tuned.handReferenceCm / refPx) * effectiveDistanceFactor : 0;
 
           if (allTips.length >= 2) {
             ctx.lineWidth = 2;
@@ -474,16 +615,20 @@ export function useHandTracking(
           }
         }
 
-        const swipe = detectSwipe(results.multiHandLandmarks[0]);
-        const finalGesture = swipe
+        const swipe = detectSwipe(handsData[0].landmarks);
+        const rawFinalGesture = swipe
           ? {
               gesture: swipe,
               confidence: 0.8,
               label: swipe === "swipe_left" ? "Swipe Left" : "Swipe Right",
-              action: swipe === "swipe_left" ? "Next Slide →" : "Previous Slide ←",
-              emoji: swipe === "swipe_left" ? "👈" : "👉",
+              action: swipe === "swipe_left" ? "Next Slide ->" : "Previous Slide <-",
+              emoji: swipe === "swipe_left" ? "<-" : "->",
             }
           : primaryGesture;
+        const finalGesture =
+          rawFinalGesture && rawFinalGesture.confidence >= tuned.gestureConfidenceThreshold
+            ? rawFinalGesture
+            : NO_GESTURE;
 
         const stabilizedGesture = stabilizeGesture(finalGesture);
 
@@ -497,7 +642,30 @@ export function useHandTracking(
           stringMeasurements: measurements,
         }));
 
-        if (stabilizedGesture && stabilizedGesture.gesture !== "none" && !isWriting && now - lastActionTime.current > 1500) {
+        const refHandForCalibration = handsData[0]?.landmarks;
+        if (refHandForCalibration?.[0] && refHandForCalibration?.[9]) {
+          const refPxForCalibration = Math.sqrt(
+            ((refHandForCalibration[0].x - refHandForCalibration[9].x) * canvas.width) ** 2 +
+            ((refHandForCalibration[0].y - refHandForCalibration[9].y) * canvas.height) ** 2
+          );
+          const baselinePx = baselineReferencePxRef.current;
+          const autoDistanceFactor =
+            baselinePx && refPxForCalibration > 0
+              ? Math.min(1.6, Math.max(0.65, baselinePx / refPxForCalibration))
+              : 1;
+          setCalibration({
+            baselineReferencePx: baselinePx,
+            currentReferencePx: refPxForCalibration,
+            effectiveDistanceFactor: Number((tuned.cameraDistanceFactor * autoDistanceFactor).toFixed(2)),
+          });
+        }
+
+        if (
+          stabilizedGesture &&
+          stabilizedGesture.gesture !== "none" &&
+          !isWriting &&
+          now - lastActionTime.current > tuned.actionDebounceMs
+        ) {
           lastActionTime.current = now;
           gestureActionRef.current?.(stabilizedGesture.gesture);
         }
@@ -514,6 +682,11 @@ export function useHandTracking(
           hands: [],
           writingTip: null,
           isWriting: false,
+        }));
+        setCalibration((prev) => ({
+          ...prev,
+          currentReferencePx: null,
+          effectiveDistanceFactor: Number(tuningRef.current.cameraDistanceFactor.toFixed(2)),
         }));
       }
     };
@@ -567,7 +740,7 @@ export function useHandTracking(
     animId = requestAnimationFrame(processFrame);
 
     cameraRef.current = { stop: () => cancelAnimationFrame(animId) };
-  }, [videoRef, canvasRef]);
+  }, [videoRef, canvasRef, resolveHandedness]);
 
   const cleanup = useCallback(() => {
     try { cameraRef.current?.stop(); } catch (_) {}
@@ -585,19 +758,69 @@ export function useHandTracking(
       videoRef.current.srcObject = null;
     }
     resetSwipeHistory();
+    handednessStateRef.current = {};
   }, [videoRef]);
 
   const stop = useCallback(() => {
     cleanup();
+    handednessStateRef.current = {};
     setState({
       isLoading: false, isActive: false, trackingReady: false, error: null, gesture: null, landmarks: null,
       hands: [], fps: 0, writingTip: null, isWriting: false, stringMeasurements: [],
     });
+    setCalibration({
+      baselineReferencePx: baselineReferencePxRef.current,
+      currentReferencePx: null,
+      effectiveDistanceFactor: Number(tuningRef.current.cameraDistanceFactor.toFixed(2)),
+    });
   }, [cleanup]);
+
+  const captureCalibration = useCallback(() => {
+    if (!state.hands[0]?.landmarks) return false;
+    const wrist = state.hands[0].landmarks[0];
+    const mcp = state.hands[0].landmarks[9];
+    const canvas = canvasRef.current;
+    if (!wrist || !mcp || !canvas) return false;
+
+    const currentRefPx = Math.sqrt(
+      ((wrist.x - mcp.x) * canvas.width) ** 2 +
+      ((wrist.y - mcp.y) * canvas.height) ** 2
+    );
+    if (!currentRefPx || Number.isNaN(currentRefPx)) return false;
+
+    baselineReferencePxRef.current = currentRefPx;
+    try {
+      localStorage.setItem(CALIBRATION_STORAGE_KEY, String(currentRefPx));
+    } catch {
+      // ignore storage failures
+    }
+    setCalibration((prev) => ({
+      ...prev,
+      baselineReferencePx: currentRefPx,
+      currentReferencePx: currentRefPx,
+      effectiveDistanceFactor: Number(tuningRef.current.cameraDistanceFactor.toFixed(2)),
+    }));
+    return true;
+  }, [canvasRef, state.hands]);
+
+  const clearCalibration = useCallback(() => {
+    baselineReferencePxRef.current = null;
+    try {
+      localStorage.removeItem(CALIBRATION_STORAGE_KEY);
+    } catch {
+      // ignore storage failures
+    }
+    setCalibration((prev) => ({
+      ...prev,
+      baselineReferencePx: null,
+      effectiveDistanceFactor: Number(tuningRef.current.cameraDistanceFactor.toFixed(2)),
+    }));
+  }, []);
 
   useEffect(() => {
     return () => { cleanup(); };
   }, [cleanup]);
 
-  return { ...state, start, stop };
+  return { ...state, calibration, start, stop, captureCalibration, clearCalibration };
 }
+

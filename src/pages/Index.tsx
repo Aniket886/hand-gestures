@@ -13,10 +13,12 @@ import EngagementPanel from "@/components/EngagementPanel";
 import FeatureToggles, { type FeatureFlags } from "@/components/FeatureToggles";
 import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
+import TrackingCalibrationPanel from "@/components/TrackingCalibrationPanel";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2 } from "lucide-react";
 import Footer from "@/components/Footer";
+import { useTrackingPreferences } from "@/hooks/useTrackingPreferences";
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -35,6 +37,8 @@ const Index = () => {
   const featureFlagsRef = useRef(featureFlags);
   featureFlagsRef.current = featureFlags;
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { settings: trackingSettings, updateSetting: updateTrackingSetting, resetSettings: resetTrackingSettings } =
+    useTrackingPreferences();
 
   const {
     mappings,
@@ -83,13 +87,29 @@ const Index = () => {
   const drawMeasureRef = useRef(true);
   drawMeasureRef.current = featureFlags.measuring;
 
-  const { isActive, isLoading, trackingReady, error: cameraError, gesture, fps, hands, writingTip, isWriting, start, stop } = useHandTracking(
+  const {
+    isActive,
+    isLoading,
+    trackingReady,
+    error: cameraError,
+    gesture,
+    fps,
+    hands,
+    writingTip,
+    isWriting,
+    calibration,
+    start,
+    stop,
+    captureCalibration,
+    clearCalibration,
+  } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
     canvasRef as React.RefObject<HTMLCanvasElement>,
     handleGestureAction,
     handOverlayRef,
     drawStringRef,
-    drawMeasureRef
+    drawMeasureRef,
+    trackingSettings
   );
 
   const { emotion, isLoading: emotionLoading, startDetection, stopDetection } = useFaceEmotion(
@@ -280,6 +300,16 @@ const Index = () => {
           </div>
           <div className="space-y-4">
             <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} />
+            <TrackingCalibrationPanel
+              settings={trackingSettings}
+              calibration={calibration}
+              hands={hands}
+              isActive={isActive}
+              onChangeSetting={updateTrackingSetting}
+              onResetSettings={resetTrackingSettings}
+              onCaptureCalibration={captureCalibration}
+              onClearCalibration={clearCalibration}
+            />
             {featureFlags.faceEmotion && (
               <EngagementPanel data={engagement} isActive={isActive} />
             )}
