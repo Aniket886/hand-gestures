@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   findWakeWord,
   interpretTranscript,
+  isQuestionLike,
   normalizeTranscript,
   parseVoiceCommand,
 } from "@/hooks/useVoiceCommandAssistant";
@@ -68,5 +69,11 @@ describe("Voice Assistant helpers", () => {
     expect(res.command?.id).toBe("stop_tracking");
     expect(res.nextArmedUntilMs).toBe(0);
   });
-});
 
+  it("question cue gating", () => {
+    expect(isQuestionLike("what is todays date")).toBe(true);
+    expect(isQuestionLike("tell me about gestures")).toBe(true);
+    expect(isQuestionLike("start tracking")).toBe(false);
+    expect(isQuestionLike("random words")).toBe(false);
+  });
+});
