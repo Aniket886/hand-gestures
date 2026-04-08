@@ -200,6 +200,22 @@ export function interpretTranscript(args: {
   return { nextArmedUntilMs: args.armedUntilMs, command: null, isWakeOnly: false, normalized };
 }
 
+export function isQuestionLike(normalized: string): boolean {
+  const cues = [
+    "what",
+    "who",
+    "why",
+    "how",
+    "when",
+    "where",
+    "tell me",
+    "define",
+    "explain",
+    "meaning of",
+  ];
+  return cues.some((cue) => normalized.includes(cue));
+}
+
 function speak(text: string) {
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
@@ -310,11 +326,15 @@ export function useVoiceCommandAssistant({
       const isWakeOrArmed = interpreted.normalized.length > 0 && armedUntilRef.current > 0;
       if (isWakeOrArmed && onQueryRef.current) {
         const prompt = interpreted.normalized;
-        setLastResponse("Thinking...");
         if (!sawFinal) return;
-        void Promise.resolve(onQueryRef.current(prompt)).catch(() => {
-          setLastResponse("Unable to answer right now.");
-        });
+        if (isQuestionLike(prompt)) {
+          setLastResponse("Thinking...");
+          void Promise.resolve(onQueryRef.current(prompt)).catch(() => {
+            setLastResponse("Unable to answer right now.");
+          });
+        } else {
+          setLastResponse('Try: "Arc start tracking", "Arc stop tracking", or "Arc help".');
+        }
       }
     };
 
