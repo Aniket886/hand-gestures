@@ -78,6 +78,32 @@ Key files:
 - `src/pages/Index.tsx` (registers home handlers; includes under-camera Arc toggle chip)
 - `src/pages/Presentation.tsx` (registers presentation handlers; uses shared Arc state)
 
+### 5) Spatial Interaction Mode
+- New route: `/spatial`
+- Provides three modes:
+  - `draw`: capture air-writing strokes and commit them into 3D objects
+  - `spatial`: manipulate created objects in a 3D scene
+  - `solar`: built-in interactive Solar System demo
+- Gesture input currently uses hand landmarks + pinch detection:
+  - primary pinch -> grab/release
+  - two-hand pinch -> scale selected object
+  - pointer position is derived from index fingertip
+- Scene supports:
+  - orbit / zoom / rotate via camera controls
+  - moving planets and drawn objects
+  - resetting solar objects to defaults
+
+Key files:
+- `src/pages/SpatialStudio.tsx`
+- `src/components/SpatialScene.tsx`
+- `src/hooks/useSpatialGestures.ts`
+- `src/lib/spatialTypes.ts`
+- `src/lib/spatialSceneData.ts`
+
+Known limitations:
+- Draw-to-object conversion is MVP quality: committed drawings become 3D line objects, not volumetric meshes.
+- Scene interaction is stable enough for demo use, but not yet physics-driven or depth-snapped.
+
 Groq backend:
 - Vercel function: `api/arc.js`
 - Env var on Vercel: `GROQ_KEY`
