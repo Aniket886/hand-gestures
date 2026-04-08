@@ -16,9 +16,10 @@ import AirWritingCanvas from "@/components/AirWritingCanvas";
 import TrackingCalibrationPanel from "@/components/TrackingCalibrationPanel";
 import CustomGestureTrainer from "@/components/CustomGestureTrainer";
 import VoiceAssistantPanel from "@/components/VoiceAssistantPanel";
+import ToolsModal from "@/components/ToolsModal";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
-import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2 } from "lucide-react";
+import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2, Wrench } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useTrackingPreferences } from "@/hooks/useTrackingPreferences";
 import { useCustomGestureProfiles } from "@/hooks/useCustomGestureProfiles";
@@ -42,6 +43,7 @@ const Index = () => {
   const featureFlagsRef = useRef(featureFlags);
   featureFlagsRef.current = featureFlags;
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const { settings: trackingSettings, updateSetting: updateTrackingSetting, resetSettings: resetTrackingSettings } =
     useTrackingPreferences();
   const { profiles: customGestureProfiles, addProfile: addCustomGestureProfile, removeProfile: removeCustomGestureProfile } =
@@ -384,42 +386,44 @@ const Index = () => {
           )}
         </div>
 
+        {/* Quick controls under camera */}
+        <div className="mt-3 bg-card/50 backdrop-blur-md border border-border rounded-xl px-4 py-3 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
+              Quick Controls
+            </p>
+            <button
+              onClick={() => setToolsOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              Tools
+            </button>
+          </div>
+          <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} variant="bar" />
+        </div>
+
         {/* Controls row below camera */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
           <div className="lg:col-span-2">
             <GestureLegend activeGesture={gesture?.gesture ?? null} mappings={mappings} />
           </div>
           <div className="space-y-4">
-            <FeatureToggles flags={featureFlags} onChange={setFeatureFlags} />
-            <TrackingCalibrationPanel
-              settings={trackingSettings}
-              calibration={calibration}
-              hands={hands}
-              isActive={isActive}
-              onChangeSetting={updateTrackingSetting}
-              onResetSettings={resetTrackingSettings}
-              onCaptureCalibration={captureCalibration}
-              onClearCalibration={clearCalibration}
-            />
-            <CustomGestureTrainer
-              isActive={isActive}
-              hands={hands}
-              profiles={customGestureProfiles}
-              onCreateProfile={handleCreateCustomGesture}
-              onDeleteProfile={handleDeleteCustomGesture}
-            />
-            <VoiceAssistantPanel
-              isSupported={voice.isSupported}
-              isListening={voice.isListening}
-              lastHeard={voice.lastHeard}
-              lastResponse={voice.lastResponse}
-              error={voice.error}
-              onStart={voice.startListening}
-              onStop={voice.stopListening}
-            />
-            {featureFlags.faceEmotion && (
-              <EngagementPanel data={engagement} isActive={isActive} />
-            )}
+            <div className="bg-card border border-border rounded-xl p-4">
+              <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest">
+                Advanced
+              </p>
+              <p className="font-mono text-[11px] text-muted-foreground mt-2">
+                Open Tools for calibration, trainer, and voice commands.
+              </p>
+              <button
+                onClick={() => setToolsOpen(true)}
+                className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-medium bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all"
+              >
+                <Wrench className="w-4 h-4" />
+                Open Tools
+              </button>
+            </div>
           </div>
         </div>
       </main>
@@ -435,6 +439,36 @@ const Index = () => {
         onRemoveCustom={removeCustomGesture}
         onReset={resetToDefaults}
       />
+
+      <ToolsModal isOpen={toolsOpen} onClose={() => setToolsOpen(false)} title="Tools">
+        <TrackingCalibrationPanel
+          settings={trackingSettings}
+          calibration={calibration}
+          hands={hands}
+          isActive={isActive}
+          onChangeSetting={updateTrackingSetting}
+          onResetSettings={resetTrackingSettings}
+          onCaptureCalibration={captureCalibration}
+          onClearCalibration={clearCalibration}
+        />
+        <CustomGestureTrainer
+          isActive={isActive}
+          hands={hands}
+          profiles={customGestureProfiles}
+          onCreateProfile={handleCreateCustomGesture}
+          onDeleteProfile={handleDeleteCustomGesture}
+        />
+        <VoiceAssistantPanel
+          isSupported={voice.isSupported}
+          isListening={voice.isListening}
+          lastHeard={voice.lastHeard}
+          lastResponse={voice.lastResponse}
+          error={voice.error}
+          onStart={voice.startListening}
+          onStop={voice.stopListening}
+        />
+        {featureFlags.faceEmotion && <EngagementPanel data={engagement} isActive={isActive} />}
+      </ToolsModal>
 
       <Footer />
     </div>
