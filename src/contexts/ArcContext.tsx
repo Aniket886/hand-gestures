@@ -466,6 +466,13 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // If the wake word shows up in an interim phrase alongside a partial question/command,
+      // arm early so the final follow-up chunk is still accepted even if it no longer repeats "Arc".
+      if (wake.hasWake && !sawFinal) {
+        armedUntilRef.current = Math.max(armedUntilRef.current, now + WAKE_WINDOW_MS);
+        setStatus("armed");
+      }
+
       if (wake.hasWake && !wake.afterWake) {
         armedUntilRef.current = now + WAKE_WINDOW_MS;
         setStatus("armed");
@@ -522,6 +529,10 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       if (isTransientRecognitionError(code)) {
         recognitionHealthRef.current = "transient";
         logArcEvent({ state: "listening", action: "recognition_error_transient", detail: code });
+        setError(null);
+        if (isEnabledRef.current) {
+          syncStatusFromState();
+        }
         return;
       }
 
