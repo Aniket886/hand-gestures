@@ -15,12 +15,14 @@ import GestureSettingsModal from "@/components/GestureSettingsModal";
 import AirWritingCanvas from "@/components/AirWritingCanvas";
 import TrackingCalibrationPanel from "@/components/TrackingCalibrationPanel";
 import CustomGestureTrainer from "@/components/CustomGestureTrainer";
+import VoiceAssistantPanel from "@/components/VoiceAssistantPanel";
 import { triggerGestureFeedback, resumeAudioContext } from "@/lib/feedback";
 import type { GestureType } from "@/lib/gestures";
 import { Camera, CameraOff, Hand, Settings, Presentation, Gamepad2, Loader2 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useTrackingPreferences } from "@/hooks/useTrackingPreferences";
 import { useCustomGestureProfiles } from "@/hooks/useCustomGestureProfiles";
+import { useVoiceCommandAssistant, type VoiceCommand } from "@/hooks/useVoiceCommandAssistant";
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -165,6 +167,69 @@ const Index = () => {
     },
     [removeCustomGestureProfile, removeMappingByGesture]
   );
+
+  const voiceRespondRef = useRef<(message: string, withVoice?: boolean) => void>(() => {});
+
+  const handleVoiceCommand = useCallback(
+    (command: VoiceCommand) => {
+      if (command.id === "start_tracking") {
+        if (!isActive) handleStart();
+        voiceRespondRef.current("Starting tracking.");
+        return;
+      }
+      if (command.id === "stop_tracking") {
+        if (isActive) stop();
+        voiceRespondRef.current("Stopping tracking.");
+        return;
+      }
+      if (command.id === "next_slide") {
+        navigate("/present");
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("voice-presentation-command", { detail: { action: "next" } }));
+        }, 120);
+        voiceRespondRef.current("Opening presentation. Next slide.");
+        return;
+      }
+      if (command.id === "prev_slide") {
+        navigate("/present");
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("voice-presentation-command", { detail: { action: "prev" } }));
+        }, 120);
+        voiceRespondRef.current("Opening presentation. Previous slide.");
+        return;
+      }
+      if (command.id === "capture_calibration") {
+        const ok = captureCalibration();
+        voiceRespondRef.current(ok ? "Calibration captured." : "Show one hand clearly, then try calibration again.");
+        return;
+      }
+      if (command.id === "open_presentation") {
+        navigate("/present");
+        voiceRespondRef.current("Opening presentation mode.");
+        return;
+      }
+      if (command.id === "open_playground") {
+        navigate("/play");
+        voiceRespondRef.current("Opening playground mode.");
+        return;
+      }
+      if (command.id === "go_home") {
+        navigate("/");
+        voiceRespondRef.current("Returning to home.");
+        return;
+      }
+      if (command.id === "help") {
+        voiceRespondRef.current("Try Arc start tracking, Arc next slide, or Arc enable calibration.");
+      }
+    },
+    [captureCalibration, handleStart, isActive, navigate, stop]
+  );
+
+  const voice = useVoiceCommandAssistant({
+    wakePhrase: "arc",
+    onCommand: handleVoiceCommand,
+  });
+  voiceRespondRef.current = voice.respond;
 
   return (
     <div className="min-h-screen bg-background grid-bg scanline">
@@ -341,6 +406,15 @@ const Index = () => {
               profiles={customGestureProfiles}
               onCreateProfile={handleCreateCustomGesture}
               onDeleteProfile={handleDeleteCustomGesture}
+            />
+            <VoiceAssistantPanel
+              isSupported={voice.isSupported}
+              isListening={voice.isListening}
+              lastHeard={voice.lastHeard}
+              lastResponse={voice.lastResponse}
+              error={voice.error}
+              onStart={voice.startListening}
+              onStop={voice.stopListening}
             />
             {featureFlags.faceEmotion && (
               <EngagementPanel data={engagement} isActive={isActive} />

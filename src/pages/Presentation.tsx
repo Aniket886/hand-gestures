@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Maximize, Minimize } from "lucide-react";
+import { ArrowLeft, Maximize, Mic, MicOff } from "lucide-react";
 import Footer from "@/components/Footer";
+import { useVoiceCommandAssistant, type VoiceCommand } from "@/hooks/useVoiceCommandAssistant";
 
 const slides = [
   {
@@ -53,6 +54,37 @@ const Presentation = () => {
 
   const goNext = useCallback(() => setCurrentSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1)), []);
   const goPrev = useCallback(() => setCurrentSlide((s) => Math.max(s - 1, 0)), []);
+  const voiceRespondRef = useRef<(message: string, withVoice?: boolean) => void>(() => {});
+
+  const handleVoiceCommand = useCallback(
+    (command: VoiceCommand) => {
+      if (command.id === "next_slide") {
+        goNext();
+        voiceRespondRef.current("Next slide.");
+        return;
+      }
+      if (command.id === "prev_slide") {
+        goPrev();
+        voiceRespondRef.current("Previous slide.");
+        return;
+      }
+      if (command.id === "go_home") {
+        navigate("/");
+        voiceRespondRef.current("Returning home.");
+        return;
+      }
+      if (command.id === "help") {
+        voiceRespondRef.current("Try Arc next slide, Arc previous slide, or Arc go home.");
+      }
+    },
+    [goNext, goPrev, navigate]
+  );
+
+  const voice = useVoiceCommandAssistant({
+    wakePhrase: "arc",
+    onCommand: handleVoiceCommand,
+  });
+  voiceRespondRef.current = voice.respond;
 
   // Keyboard navigation
   useEffect(() => {
@@ -69,6 +101,18 @@ const Presentation = () => {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [goNext, goPrev, navigate]);
+
+  useEffect(() => {
+    const onVoiceControl = (event: Event) => {
+      const detail = (event as CustomEvent<{ action?: string }>).detail;
+      if (detail?.action === "next") goNext();
+      if (detail?.action === "prev") goPrev();
+    };
+    window.addEventListener("voice-presentation-command", onVoiceControl as EventListener);
+    return () => {
+      window.removeEventListener("voice-presentation-command", onVoiceControl as EventListener);
+    };
+  }, [goNext, goPrev]);
 
   // Track fullscreen state
   useEffect(() => {
@@ -105,6 +149,13 @@ const Presentation = () => {
           >
             <Maximize className="w-3.5 h-3.5" />
             Fullscreen
+          </button>
+          <button
+            onClick={voice.isListening ? voice.stopListening : voice.startListening}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border transition-all"
+          >
+            {voice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+            {voice.isListening ? "Voice On" : "Voice Off"}
           </button>
         </div>
       )}
@@ -187,14 +238,25 @@ const Presentation = () => {
 
       {/* Fullscreen exit hint */}
       {isFullscreen && (
-        <motion.div
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 0 }}
-          transition={{ delay: 2, duration: 1 }}
-          className="fixed top-4 right-4 z-50 bg-card/80 backdrop-blur-md border border-border rounded-lg px-3 py-2"
-        >
-          <span className="font-mono text-[10px] text-muted-foreground">Press ESC to exit</span>
-        </motion.div>
+        <>
+          <motion.div
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 0 }}
+            transition={{ delay: 2, duration: 1 }}
+            className="fixed top-4 right-4 z-50 bg-card/80 backdrop-blur-md border border-border rounded-lg px-3 py-2"
+          >
+            <span className="font-mono text-[10px] text-muted-foreground">Press ESC to exit</span>
+          </motion.div>
+          <div className="fixed bottom-4 right-4 z-50 bg-card/80 backdrop-blur-md border border-border rounded-lg px-3 py-2">
+            <button
+              onClick={voice.isListening ? voice.stopListening : voice.startListening}
+              className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-all"
+            >
+              {voice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              {voice.isListening ? "Arc Listening" : "Start Arc"}
+            </button>
+          </div>
+        </>
       )}
 
       {!isFullscreen && <Footer />}

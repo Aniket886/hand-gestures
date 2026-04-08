@@ -25,11 +25,27 @@ interface SpeechRecognitionLike {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
-  onresult: ((event: any) => void) | null;
-  onerror: ((event: any) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
+}
+
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultLike {
+  0: SpeechRecognitionAlternativeLike;
+}
+
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface SpeechRecognitionErrorEventLike {
+  error?: string;
 }
 
 function normalize(text: string): string {
@@ -113,8 +129,9 @@ export function useVoiceCommandAssistant({ wakePhrase = "arc", onCommand }: Voic
     recognition.lang = "en-US";
     recognitionRef.current = recognition;
 
-    recognition.onresult = (event: any) => {
-      const transcript = String(event.results[event.results.length - 1][0].transcript || "");
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
+      const latest = event.results[event.results.length - 1];
+      const transcript = String(latest?.[0]?.transcript || "");
       const normalized = normalize(transcript);
       setLastHeard(transcript.trim());
 
@@ -139,7 +156,7 @@ export function useVoiceCommandAssistant({ wakePhrase = "arc", onCommand }: Voic
       onCommand(command);
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
       const message = event?.error ? `Voice error: ${event.error}` : "Voice recognition error";
       setError(message);
     };
