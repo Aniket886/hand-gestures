@@ -69,7 +69,9 @@ function loadMappings(): GestureMapping[] {
       const customEntries = parsed.filter((m) => m.isCustom && !DEFAULT_MAPPINGS.find((d) => d.gesture === m.gesture));
       return [...merged, ...customEntries];
     }
-  } catch {}
+  } catch {
+    // ignore invalid persisted mappings
+  }
   return [...DEFAULT_MAPPINGS];
 }
 

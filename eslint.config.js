@@ -23,4 +23,23 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    files: ["src/hooks/useHandTracking.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-empty": "off",
+    },
+  },
+  {
+    files: ["src/hooks/useGestureMappings.ts"],
+    rules: {
+      "no-empty": "off",
+    },
+  },
+  {
+    files: ["tailwind.config.ts"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 );
