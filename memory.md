@@ -62,6 +62,10 @@ Key files:
   - `speaking`
   - `error`
 - If Arc is armed and no follow-up is spoken before the wake window expires, it should auto-reset back to listening instead of staying armed.
+- Transient recognition errors (`no-speech`, `network`, `aborted`) are now treated as recoverable and should not surface as fatal UI error state.
+- Fatal recognition errors remain permission/device only (`not-allowed`, `service-not-allowed`, `audio-capture`).
+- Arc restart behavior now uses a short backoff on `onend` when still enabled and not speaking.
+- Question routing is broader and should answer natural prompts like `which ...`, `can you ...`, `do you know ...`.
 
 Key files:
 - `src/contexts/ArcContext.tsx`
@@ -120,6 +124,8 @@ Tests:
   - stale wake state after a command/query
   - self-trigger loops such as repeated "Stopping tracking"
   - getting stuck after answering a Groq question
+- Additional fix shipped:
+  - idle listening should not drift into `Arc Error` just because the browser emitted transient recognition events
 - If `Last heard` stays `-` while mic is on, `SpeechRecognition.onresult` is likely not firing (browser/permission/support issue).
 - If Arc still loops after this refactor, inspect whether the browser is re-emitting old final results or whether TTS is still being captured despite the recognition pause.
 
