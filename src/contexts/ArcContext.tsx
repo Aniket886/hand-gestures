@@ -79,6 +79,7 @@ interface ArcContextValue {
 const STORAGE_KEY = "arc-enabled";
 const WAKE_WORDS = ["arc", "ark", "are"];
 const WAKE_WINDOW_MS = 8000;
+const COMMAND_DEBOUNCE_MS = 1500;
 
 const ArcContext = createContext<ArcContextValue | null>(null);
 
@@ -136,6 +137,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
   const speechEndCleanupRef = useRef<(() => void) | null>(null);
   const runCommandRef = useRef<(command: VoiceCommand) => Promise<void>>();
   const answerQueryRef = useRef<(prompt: string) => Promise<void>>();
+  const lastCommandRef = useRef<{ id: VoiceCommand["id"]; at: number } | null>(null);
 
   const clearInteractionState = useCallback(() => {
     armedUntilRef.current = 0;
@@ -410,6 +412,13 @@ export function ArcProvider({ children }: { children: ReactNode }) {
 
       const command = parseVoiceCommand(actionable);
       if (command) {
+        const lastCommand = lastCommandRef.current;
+        if (lastCommand && lastCommand.id === command.id && now - lastCommand.at <= COMMAND_DEBOUNCE_MS) {
+          clearInteractionState();
+          syncStatusFromState();
+          return;
+        }
+        lastCommandRef.current = { id: command.id, at: now };
         void runCommandRef.current?.(command);
         return;
       }
