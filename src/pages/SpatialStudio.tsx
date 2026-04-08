@@ -8,6 +8,7 @@ import { SpatialScene } from "@/components/SpatialScene";
 import type { SpatialMode, SpatialObject, SpatialStrokePoint } from "@/lib/spatialTypes";
 import { SOLAR_SYSTEM_OBJECTS } from "@/lib/spatialSceneData";
 import Footer from "@/components/Footer";
+import type { HandData } from "@/hooks/useHandTracking";
 
 function randomId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -37,7 +38,7 @@ const SpatialStudio = () => {
 
   const [mode, setMode] = useState<SpatialMode>("draw");
   const [objects, setObjects] = useState<SpatialObject[]>([]);
-  const [draftStroke, setDraftStroke] = useState<SpatialStrokePoint[]>([]);
+  const [draftStrokes, setDraftStrokes] = useState<Record<string, SpatialStrokePoint[]>>({});
 
   const { isActive, isLoading, trackingReady, hands, writingTip, isWriting, start, stop } = useHandTracking(
     videoRef as React.RefObject<HTMLVideoElement>,
@@ -52,17 +53,33 @@ const SpatialStudio = () => {
 
   useEffect(() => {
     if (mode !== "draw") return;
-    if (!isWriting || !writingTip) return;
 
-    setDraftStroke((previous) => {
-      const nextPoint = { x: writingTip.x * 1000, y: writingTip.y * 1000 };
-      const lastPoint = previous[previous.length - 1];
-      if (lastPoint && Math.abs(lastPoint.x - nextPoint.x) < 3 && Math.abs(lastPoint.y - nextPoint.y) < 3) {
-        return previous;
-      }
-      return [...previous, nextPoint];
+    const writingHands = hands.filter((hand) => {
+      const thumb = hand.landmarks?.[4];
+      const index = hand.landmarks?.[8];
+      return thumb && index && Math.hypot(index.x - thumb.x, index.y - thumb.y) > 0.04;
     });
-  }, [isWriting, mode, writingTip]);
+
+    if (writingHands.length === 0) return;
+
+    setDraftStrokes((previous) => {
+      const next = { ...previous };
+
+      for (const hand of writingHands) {
+        const tip = hand.landmarks?.[8];
+        if (!tip) continue;
+        const stroke = next[hand.trackId] ?? [];
+        const point = { x: tip.x * 1000, y: tip.y * 1000 };
+        const lastPoint = stroke[stroke.length - 1];
+        if (lastPoint && Math.abs(lastPoint.x - point.x) < 3 && Math.abs(lastPoint.y - point.y) < 3) {
+          continue;
+        }
+        next[hand.trackId] = [...stroke, point];
+      }
+
+      return next;
+    });
+  }, [hands, mode]);
 
   useEffect(() => {
     if (mode === "solar") {
@@ -71,31 +88,36 @@ const SpatialStudio = () => {
   }, [mode]);
 
   const commitDrawing = useCallback(() => {
-    if (draftStroke.length < 4) return;
-    const points = normalizeStroke(draftStroke);
-    const drawingObject: SpatialObject = {
-      id: randomId("drawing"),
-      kind: "drawing",
-      label: `Sketch ${objects.filter((object) => object.kind === "drawing").length + 1}`,
-      color: "#4cc9f0",
-      position: { x: 0, y: 0, z: -1.8 },
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 1, y: 1, z: 1 },
-      defaultPosition: { x: 0, y: 0, z: -1.8 },
-      defaultRotation: { x: 0, y: 0, z: 0 },
-      defaultScale: { x: 1, y: 1, z: 1 },
-      hovered: false,
-      selected: false,
-      grabbed: false,
-      physicsEnabled: false,
-      points,
-    };
-    setObjects((previous) => [...previous, drawingObject]);
-    setDraftStroke([]);
-    setMode("spatial");
-  }, [draftStroke, objects]);
+    const readyEntries = Object.entries(draftStrokes).filter(([, points]) => points.length >= 4);
+    if (readyEntries.length === 0) return;
 
-  const clearDraft = useCallback(() => setDraftStroke([]), []);
+    const nextObjects = readyEntries.map(([trackId, stroke], index) => {
+      const points = normalizeStroke(stroke);
+      return {
+        id: randomId("drawing"),
+        kind: "drawing" as const,
+        label: `Sketch ${objects.filter((object) => object.kind === "drawing").length + index + 1}`,
+        color: trackId === "slot1" ? "#f72585" : "#4cc9f0",
+        position: { x: index * 1.5 - ((readyEntries.length - 1) * 0.75), y: 0, z: -1.8 },
+        rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        defaultPosition: { x: index * 1.5 - ((readyEntries.length - 1) * 0.75), y: 0, z: -1.8 },
+        defaultRotation: { x: 0, y: 0, z: 0 },
+        defaultScale: { x: 1, y: 1, z: 1 },
+        hovered: false,
+        selected: false,
+        grabbed: false,
+        physicsEnabled: false,
+        points,
+      };
+    });
+
+    setObjects((previous) => [...previous, ...nextObjects]);
+    setDraftStrokes({});
+    setMode("spatial");
+  }, [draftStrokes, objects]);
+
+  const clearDraft = useCallback(() => setDraftStrokes({}), []);
   const clearObjects = useCallback(() => setObjects((previous) => previous.filter((object) => object.kind === "planet" || object.kind === "star")), []);
   const resetSolar = useCallback(() => setObjects(SOLAR_SYSTEM_OBJECTS.map((object) => ({ ...object }))), []);
 
@@ -187,7 +209,9 @@ const SpatialStudio = () => {
                     {hands.length} hand{hands.length !== 1 ? "s" : ""} • {gestures.primaryPinch ? "Pinch" : "Open"}
                   </div>
                   <div className="bg-card/75 border border-border rounded-lg px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
-                    {mode === "draw" ? `${draftStroke.length} pts` : `${objects.length} objects`}
+                    {mode === "draw"
+                      ? `${Object.values(draftStrokes).reduce((total, points) => total + points.length, 0)} pts`
+                      : `${objects.length} objects`}
                   </div>
                 </div>
               )}
@@ -199,7 +223,7 @@ const SpatialStudio = () => {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={commitDrawing}
-                  disabled={draftStroke.length < 4}
+                  disabled={!Object.values(draftStrokes).some((points) => points.length >= 4)}
                   className="px-3 py-2 rounded-xl font-mono text-xs bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 disabled:opacity-40 transition-all"
                 >
                   Commit Drawing
