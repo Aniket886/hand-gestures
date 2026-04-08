@@ -224,6 +224,10 @@ export function useVoiceCommandAssistant({
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const manualStopRef = useRef(false);
+  const wakePhraseRef = useRef(wakePhrase);
+  wakePhraseRef.current = wakePhrase;
+  const onCommandRef = useRef(onCommand);
+  onCommandRef.current = onCommand;
   const onQueryRef = useRef<typeof onQuery>(onQuery);
   onQueryRef.current = onQuery;
   const armedUntilRef = useRef(0);
@@ -295,7 +299,7 @@ export function useVoiceCommandAssistant({
 
       if (interpreted.command) {
         setLastResponse(`Command: ${interpreted.command.id.replaceAll("_", " ")}`);
-        if (sawFinal) onCommand(interpreted.command);
+        if (sawFinal) onCommandRef.current(interpreted.command);
         return;
       }
 
@@ -314,7 +318,7 @@ export function useVoiceCommandAssistant({
 
     recognition.onstart = () => {
       setError(null);
-      setLastResponse(`Listening for "${wakePhrase}"...`);
+      setLastResponse(`Listening for "${wakePhraseRef.current}"...`);
     };
     recognition.onaudiostart = () => {
       setLastResponse("Mic active...");
@@ -367,7 +371,7 @@ export function useVoiceCommandAssistant({
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, [onCommand, wakeWords, wakeWindowMs]);
+  }, [wakeWords, wakeWindowMs]);
 
   useEffect(() => {
     if (!armedUntilMs) return;
