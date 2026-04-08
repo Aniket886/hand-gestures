@@ -48,7 +48,7 @@ Key files:
 ### 4) Arc voice assistant (wake word + commands + Groq answers)
 - Arc is now app-scoped via `src/contexts/ArcContext.tsx` instead of page-local.
 - Wake phrase: "Arc" with aliases (arc/ark/are).
-- Wake window: saying "Arc" arms assistant for ~6s; next phrase can omit "Arc".
+- Wake window: saying "Arc" arms assistant for ~8s; next phrase can omit "Arc".
 - Commands supported: start/stop tracking, next/prev slide, capture calibration, open presentation/playground/home, help.
 - Freeform questions after wake are sent to Groq and spoken back.
 - Arc enablement is persisted in localStorage (`arc-enabled`) so it should stay on across route changes and reloads until user turns it off.
@@ -60,6 +60,7 @@ Key files:
   - `querying`
   - `speaking`
   - `error`
+- If Arc is armed and no follow-up is spoken before the wake window expires, it should auto-reset back to listening instead of staying armed.
 
 Key files:
 - `src/contexts/ArcContext.tsx`

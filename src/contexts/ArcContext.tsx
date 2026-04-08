@@ -78,7 +78,7 @@ interface ArcContextValue {
 
 const STORAGE_KEY = "arc-enabled";
 const WAKE_WORDS = ["arc", "ark", "are"];
-const WAKE_WINDOW_MS = 6000;
+const WAKE_WINDOW_MS = 8000;
 
 const ArcContext = createContext<ArcContextValue | null>(null);
 
@@ -489,6 +489,27 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       setLastResponse("Arc paused.");
     }
   }, [clearInteractionState, isEnabled, isSupported, startRecognition, stopRecognition]);
+
+  useEffect(() => {
+    if (!isEnabled) return;
+    if (status !== "armed") return;
+
+    const remainingMs = armedUntilRef.current - Date.now();
+    if (remainingMs <= 0) {
+      clearInteractionState();
+      setLastResponse('Listening for "Arc"...');
+      syncStatusFromState();
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      clearInteractionState();
+      setLastResponse('Listening for "Arc"...');
+      syncStatusFromState();
+    }, remainingMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [clearInteractionState, isEnabled, status, syncStatusFromState]);
 
   useEffect(() => {
     void executePendingIfReady();
