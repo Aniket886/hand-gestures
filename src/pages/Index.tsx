@@ -311,7 +311,15 @@ const Index = () => {
       {/* Main content */}
       <main className="container py-4">
         {/* Camera — full width, large */}
-        <div className="relative bg-card border border-border rounded-xl overflow-hidden w-full" style={{ aspectRatio: "16/9" }}>
+        <div ref={cameraViewportRef} className="w-full">
+          <div
+            className="relative bg-card border border-border rounded-xl overflow-hidden"
+            style={{
+              width: cameraPanelWidth ? `${cameraPanelWidth}px` : "100%",
+              maxWidth: "100%",
+              aspectRatio: "16/9",
+            }}
+          >
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover transform -scale-x-100"
@@ -393,6 +401,15 @@ const Index = () => {
               ✏️ Point with index finger to draw • Use gestures to navigate
             </div>
           )}
+          <button
+            type="button"
+            onPointerDown={startResize}
+            className="absolute bottom-3 right-3 z-50 h-8 w-8 rounded-md border border-primary/30 bg-card/85 backdrop-blur-sm text-primary cursor-se-resize hover:bg-primary/10 transition-all flex items-center justify-center"
+            title="Resize camera panel"
+          >
+            <span className="block h-3 w-3 border-r-2 border-b-2 border-current" />
+          </button>
+        </div>
         </div>
 
         {/* Quick controls under camera */}
