@@ -49,6 +49,7 @@ If debugging stale or glitchy voice behavior, check the Arc status panel in Tool
 | **Mini Games**                    | Bubble Pop, Catch Star, Gesture Match — all gesture-controlled            |
 | **Haptic/Sound/Voice Feedback**   | Multi-modal feedback on gesture recognition                               |
 | **Customizable Gesture Mappings** | Remap gestures to different actions                                       |
+| **Spatial Interaction Mode**      | Draw shapes into space, grab 3D objects, and explore a Solar System demo  |
 
 ---
 
@@ -65,6 +66,7 @@ If debugging stale or glitchy voice behavior, check the Arc status panel in Tool
 | **Tailwind CSS 3** | Utility-first styling    |
 | **Framer Motion**  | Animations & transitions |
 | **React Router 6** | Client-side routing      |
+| **Three.js + R3F** | Spatial 3D scene rendering |
 
 ### AI / ML Libraries
 
@@ -88,6 +90,20 @@ If debugging stale or glitchy voice behavior, check the Arc status panel in Tool
 | ------------------------- | -------------------------- |
 | **TanStack React Query**  | Async state management     |
 | **React Hook Form + Zod** | Form handling & validation |
+
+## Spatial Interaction Mode
+
+ArcMotion now includes a dedicated `/spatial` route with three immersive modes:
+
+- `Draw Mode`: use hand-tracked air-writing, then commit sketches into 3D interactive line objects.
+- `Spatial Interaction Mode`: grab, move, rotate, and scale created objects using pinch-driven hand input.
+- `Solar System Mode`: explore a 3D Solar System scene where planets can be selected, moved, inspected, and reset.
+
+Current gesture mapping for this mode:
+- single-hand pinch: grab / release
+- pinch + drag: move object
+- two-hand pinch: scale object
+- orbit camera controls: inspect scene in 360 degrees
 
 ---
 
