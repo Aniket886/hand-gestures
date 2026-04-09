@@ -8,6 +8,7 @@ interface RecordOptions {
 }
 
 type StopReason = "silence" | "timeout" | "error" | "empty";
+type RecordingPhase = "waiting_for_speech" | "recording_speech" | "done";
 
 export interface ArcUtteranceResult {
   blob: Blob | null;
@@ -15,6 +16,8 @@ export interface ArcUtteranceResult {
   heardSpeech: boolean;
   durationMs: number;
   stopReason: StopReason;
+  phase: RecordingPhase;
+  blobSize: number;
 }
 
 function getPreferredMimeType() {
@@ -79,7 +82,7 @@ export function useArcUtteranceRecorder() {
   }, []);
 
   const recordUtterance = useCallback(
-    async ({ maxDurationMs = 6500, silenceMs = 1800, preRollMs = 800 }: RecordOptions = {}) => {
+    async ({ maxDurationMs = 8000, silenceMs = 2200, preRollMs = 1200 }: RecordOptions = {}) => {
       if (isRecording) return null;
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -107,6 +110,8 @@ export function useArcUtteranceRecorder() {
       let stopReason: StopReason = "timeout";
       const startedAt = Date.now();
       let preRollComplete = false;
+      let phase: RecordingPhase = "waiting_for_speech";
+      let consecutiveSpeechFrames = 0;
 
       const stopRecorder = () => {
         if (stopRequested) return;
@@ -119,9 +124,18 @@ export function useArcUtteranceRecorder() {
       monitoringRef.current = window.setInterval(() => {
         if (!preRollComplete) return;
         const rms = getRms(analyser, data);
-        if (rms > 0.022) {
-          heardSpeech = true;
-          logArcEvent({ state: "recording", action: "recording_speech_detected", detail: rms.toFixed(4) });
+        if (rms > 0.018) {
+          consecutiveSpeechFrames += 1;
+        } else {
+          consecutiveSpeechFrames = 0;
+        }
+
+        if (consecutiveSpeechFrames >= 2) {
+          if (!heardSpeech) {
+            heardSpeech = true;
+            phase = "recording_speech";
+            logArcEvent({ state: "recording", action: "recording_speech_detected", detail: rms.toFixed(4) });
+          }
           if (silenceTimerRef.current) {
             window.clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = null;
@@ -132,6 +146,7 @@ export function useArcUtteranceRecorder() {
         if (heardSpeech && !silenceTimerRef.current) {
           silenceTimerRef.current = window.setTimeout(() => {
             stopReason = "silence";
+            phase = "done";
             logArcEvent({ state: "recording", action: "recording_stopped_silence" });
             stopRecorder();
           }, silenceMs);
@@ -144,6 +159,7 @@ export function useArcUtteranceRecorder() {
 
       maxTimerRef.current = window.setTimeout(() => {
         stopReason = heardSpeech ? "timeout" : "empty";
+        phase = "done";
         logArcEvent({ state: "recording", action: "recording_timeout" });
         stopRecorder();
       }, maxDurationMs);
@@ -157,6 +173,7 @@ export function useArcUtteranceRecorder() {
 
         recorder.onerror = () => {
           stopReason = "error";
+          phase = "done";
           cleanup();
           resolve(null);
         };
@@ -164,6 +181,7 @@ export function useArcUtteranceRecorder() {
         recorder.onstop = () => {
           const blob = chunks.length ? new Blob(chunks, { type: recorder.mimeType || "audio/webm" }) : null;
           const durationMs = Date.now() - startedAt;
+          const blobSize = blob?.size || 0;
           if (blob?.size) {
             logArcEvent({
               state: "recording",
@@ -180,6 +198,8 @@ export function useArcUtteranceRecorder() {
             heardSpeech,
             durationMs,
             stopReason: heardSpeech && blob && blob.size > 0 ? stopReason : "empty",
+            phase,
+            blobSize,
           });
         };
 
