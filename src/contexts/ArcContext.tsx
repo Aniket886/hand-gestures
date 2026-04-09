@@ -468,19 +468,24 @@ export function ArcProvider({ children }: { children: ReactNode }) {
   );
 
   const captureAndTranscribe = useCallback(async () => {
+    if (processingAudioRef.current) return;
     processingAudioRef.current = true;
     setStatus("recording");
     setLastResponse("Listening...");
     logArcEvent({ state: "recording", action: "recording_started" });
     stopRecognition();
 
-    const recording = await recordUtterance({ maxDurationMs: 5000, silenceMs: 1300 });
+    const recording = await recordUtterance({ maxDurationMs: 6500, silenceMs: 1800, preRollMs: 800 });
     logArcEvent({ state: "recording", action: "recording_finished" });
 
-    if (!recording) {
+    if (!recording || !recording.heardSpeech || !recording.blob || recording.blob.size === 0) {
       processingAudioRef.current = false;
       speechEndCleanupRef.current = syncStatusFromState;
-      await speakAndResume('I did not catch that. Say "Arc" and try again.');
+      const message =
+        recording?.stopReason === "empty"
+          ? 'No clear speech detected. Say "Arc" and try again.'
+          : "I could not capture your voice clearly. Please try again.";
+      await speakAndResume(message);
       return;
     }
 
@@ -504,7 +509,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
         processingAudioRef.current = false;
         logArcEvent({ state: "error", action: "transcription_failed", detail: data?.error || "unknown" });
         speechEndCleanupRef.current = syncStatusFromState;
-        await speakAndResume("I could not transcribe that. Please try again.");
+        await speakAndResume("I could not transcribe that clearly. Please try again.");
         return;
       }
 
@@ -515,7 +520,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       processingAudioRef.current = false;
       logArcEvent({ state: "error", action: "transcription_failed", detail: String(error) });
       speechEndCleanupRef.current = syncStatusFromState;
-      await speakAndResume("I could not transcribe that. Please try again.");
+      await speakAndResume("Transcription failed. Please try again.");
     }
   }, [handleTranscript, recordUtterance, speakAndResume, stopRecognition, syncStatusFromState, toBase64]);
 
@@ -560,6 +565,8 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       if (lastSpokenTextRef.current && normalized === lastSpokenTextRef.current) {
         return;
       }
+
+      if (processingAudioRef.current) return;
 
       if (wake.hasWake && !sawFinal) {
         armedUntilRef.current = Math.max(armedUntilRef.current, now + WAKE_WINDOW_MS);
