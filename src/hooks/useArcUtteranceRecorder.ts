@@ -1,8 +1,20 @@
 import { useCallback, useRef, useState } from "react";
+import { logArcEvent } from "@/lib/arcLogger";
 
 interface RecordOptions {
   maxDurationMs?: number;
   silenceMs?: number;
+  preRollMs?: number;
+}
+
+type StopReason = "silence" | "timeout" | "error" | "empty";
+
+export interface ArcUtteranceResult {
+  blob: Blob | null;
+  mimeType: string;
+  heardSpeech: boolean;
+  durationMs: number;
+  stopReason: StopReason;
 }
 
 function getPreferredMimeType() {
@@ -67,13 +79,14 @@ export function useArcUtteranceRecorder() {
   }, []);
 
   const recordUtterance = useCallback(
-    async ({ maxDurationMs = 5000, silenceMs = 1200 }: RecordOptions = {}) => {
+    async ({ maxDurationMs = 6500, silenceMs = 1800, preRollMs = 800 }: RecordOptions = {}) => {
       if (isRecording) return null;
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
       const mimeType = getPreferredMimeType();
+      logArcEvent({ state: "recording", action: "recording_waiting_for_speech", detail: mimeType || "default-mime" });
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
@@ -91,6 +104,9 @@ export function useArcUtteranceRecorder() {
       const chunks: BlobPart[] = [];
       let heardSpeech = false;
       let stopRequested = false;
+      let stopReason: StopReason = "timeout";
+      const startedAt = Date.now();
+      let preRollComplete = false;
 
       const stopRecorder = () => {
         if (stopRequested) return;
@@ -101,9 +117,11 @@ export function useArcUtteranceRecorder() {
       };
 
       monitoringRef.current = window.setInterval(() => {
+        if (!preRollComplete) return;
         const rms = getRms(analyser, data);
-        if (rms > 0.035) {
+        if (rms > 0.022) {
           heardSpeech = true;
+          logArcEvent({ state: "recording", action: "recording_speech_detected", detail: rms.toFixed(4) });
           if (silenceTimerRef.current) {
             window.clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = null;
@@ -113,16 +131,24 @@ export function useArcUtteranceRecorder() {
 
         if (heardSpeech && !silenceTimerRef.current) {
           silenceTimerRef.current = window.setTimeout(() => {
+            stopReason = "silence";
+            logArcEvent({ state: "recording", action: "recording_stopped_silence" });
             stopRecorder();
           }, silenceMs);
         }
       }, 120);
 
+      window.setTimeout(() => {
+        preRollComplete = true;
+      }, preRollMs);
+
       maxTimerRef.current = window.setTimeout(() => {
+        stopReason = heardSpeech ? "timeout" : "empty";
+        logArcEvent({ state: "recording", action: "recording_timeout" });
         stopRecorder();
       }, maxDurationMs);
 
-      return await new Promise<{ blob: Blob; mimeType: string } | null>((resolve) => {
+      return await new Promise<ArcUtteranceResult | null>((resolve) => {
         recorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             chunks.push(event.data);
@@ -130,17 +156,31 @@ export function useArcUtteranceRecorder() {
         };
 
         recorder.onerror = () => {
+          stopReason = "error";
           cleanup();
           resolve(null);
         };
 
         recorder.onstop = () => {
           const blob = chunks.length ? new Blob(chunks, { type: recorder.mimeType || "audio/webm" }) : null;
-          const response = heardSpeech && blob && blob.size > 0
-            ? { blob, mimeType: recorder.mimeType || "audio/webm" }
-            : null;
+          const durationMs = Date.now() - startedAt;
+          if (blob?.size) {
+            logArcEvent({
+              state: "recording",
+              action: "recording_blob_ready",
+              detail: `${blob.size}b ${recorder.mimeType || "audio/webm"} ${durationMs}ms`,
+            });
+          } else {
+            logArcEvent({ state: "recording", action: "recording_empty", detail: `${durationMs}ms` });
+          }
           cleanup();
-          resolve(response);
+          resolve({
+            blob,
+            mimeType: recorder.mimeType || "audio/webm",
+            heardSpeech,
+            durationMs,
+            stopReason: heardSpeech && blob && blob.size > 0 ? stopReason : "empty",
+          });
         };
 
         recorder.start(150);
