@@ -16,7 +16,7 @@ import {
   parseVoiceCommand,
   type VoiceCommand,
 } from "@/hooks/useVoiceCommandAssistant";
-import { logArcEvent } from "@/lib/arcLogger";
+import { getArcLogs, logArcEvent, type ArcLogEntry } from "@/lib/arcLogger";
 import { useArcUtteranceRecorder } from "@/hooks/useArcUtteranceRecorder";
 
 type ArcStatus = "idle" | "listening" | "armed" | "recording" | "transcribing" | "executing_command" | "querying" | "speaking" | "error";
@@ -71,6 +71,7 @@ interface ArcContextValue {
   lastHeard: string;
   lastResponse: string;
   error: string | null;
+  logs: ArcLogEntry[];
   enableArc: () => void;
   disableArc: () => void;
   resetArc: () => void;
@@ -125,6 +126,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
   const [lastHeard, setLastHeard] = useState("");
   const [lastResponse, setLastResponse] = useState("Idle");
   const [error, setError] = useState<string | null>(null);
+  const [logs, setLogs] = useState<ArcLogEntry[]>([]);
   const isEnabledRef = useRef(isEnabled);
   isEnabledRef.current = isEnabled;
   const errorRef = useRef(error);
@@ -659,6 +661,14 @@ export function ArcProvider({ children }: { children: ReactNode }) {
   }, [isSupported]);
 
   useEffect(() => {
+    setLogs(getArcLogs());
+    const intervalId = window.setInterval(() => {
+      setLogs(getArcLogs());
+    }, 400);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, String(isEnabled));
     if (!isSupported) return;
 
@@ -752,6 +762,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       lastHeard,
       lastResponse,
       error,
+      logs,
       enableArc,
       disableArc,
       resetArc,
@@ -767,6 +778,7 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       isSupported,
       lastHeard,
       lastResponse,
+      logs,
       registerHomeHandlers,
       registerPresentationHandlers,
       resetArc,
