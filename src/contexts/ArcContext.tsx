@@ -482,11 +482,24 @@ export function ArcProvider({ children }: { children: ReactNode }) {
 
     if (!recording || !recording.heardSpeech || !recording.blob || recording.blob.size === 0) {
       processingAudioRef.current = false;
-      speechEndCleanupRef.current = syncStatusFromState;
-      const message =
-        recording?.stopReason === "empty"
+      logArcEvent({
+        state: "recording",
+        action: recording ? "recording_empty" : "recording_failed",
+        detail: recording
+          ? `${recording.stopReason} phase=${recording.phase} heard=${recording.heardSpeech} size=${recording.blobSize} duration=${recording.durationMs}`
+          : "null-result",
+      });
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        syncStatusFromState();
+      };
+      const message = !recording
+        ? "Recording failed. Please try again."
+        : recording.stopReason === "empty" && !recording.heardSpeech
           ? 'No clear speech detected. Say "Arc" and try again.'
-          : "I could not capture your voice clearly. Please try again.";
+          : recording.blobSize < 1200
+            ? "Audio was too short or unclear. Please speak a bit longer."
+            : "I could not capture your voice clearly. Please try again.";
       await speakAndResume(message);
       return;
     }
@@ -510,21 +523,36 @@ export function ArcProvider({ children }: { children: ReactNode }) {
       if (!response.ok || !data?.text) {
         processingAudioRef.current = false;
         logArcEvent({ state: "error", action: "transcription_failed", detail: data?.error || "unknown" });
-        speechEndCleanupRef.current = syncStatusFromState;
+        speechEndCleanupRef.current = () => {
+          clearInteractionState();
+          syncStatusFromState();
+        };
         await speakAndResume("I could not transcribe that clearly. Please try again.");
         return;
       }
 
       logArcEvent({ state: "transcribing", action: "transcription_success", transcript: data.text });
       processingAudioRef.current = false;
+      if (!String(data.text).trim()) {
+        logArcEvent({ state: "transcribing", action: "transcript_empty" });
+        speechEndCleanupRef.current = () => {
+          clearInteractionState();
+          syncStatusFromState();
+        };
+        await speakAndResume("The transcript came back empty. Please try again.");
+        return;
+      }
       await handleTranscript(data.text);
     } catch (error) {
       processingAudioRef.current = false;
       logArcEvent({ state: "error", action: "transcription_failed", detail: String(error) });
-      speechEndCleanupRef.current = syncStatusFromState;
+      speechEndCleanupRef.current = () => {
+        clearInteractionState();
+        syncStatusFromState();
+      };
       await speakAndResume("Transcription failed. Please try again.");
     }
-  }, [handleTranscript, recordUtterance, speakAndResume, stopRecognition, syncStatusFromState, toBase64]);
+  }, [clearInteractionState, handleTranscript, recordUtterance, speakAndResume, stopRecognition, syncStatusFromState, toBase64]);
 
   useEffect(() => {
     const win = window as Window & {
