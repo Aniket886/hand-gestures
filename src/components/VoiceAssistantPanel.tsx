@@ -1,4 +1,5 @@
 import { Mic, MicOff, Radio, Terminal } from "lucide-react";
+import type { ArcLogEntry } from "@/lib/arcLogger";
 
 interface VoiceAssistantPanelProps {
   isSupported: boolean;
@@ -7,6 +8,7 @@ interface VoiceAssistantPanelProps {
   lastHeard: string;
   lastResponse: string;
   error: string | null;
+  logs: ArcLogEntry[];
   onStart: () => void;
   onStop: () => void;
 }
@@ -18,6 +20,7 @@ const VoiceAssistantPanel = ({
   lastHeard,
   lastResponse,
   error,
+  logs,
   onStart,
   onStop,
 }: VoiceAssistantPanelProps) => {
@@ -84,6 +87,29 @@ const VoiceAssistantPanel = ({
         <p className="font-mono text-[10px] text-muted-foreground">Arc, next slide</p>
         <p className="font-mono text-[10px] text-muted-foreground">Arc, previous slide</p>
         <p className="font-mono text-[10px] text-muted-foreground">Arc, enable calibration</p>
+      </div>
+
+      <div className="bg-secondary/20 border border-border rounded-lg p-3 space-y-2">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Recent Logs</p>
+        <div className="space-y-1 max-h-40 overflow-y-auto">
+          {logs.length === 0 ? (
+            <p className="font-mono text-[10px] text-muted-foreground">No logs yet.</p>
+          ) : (
+            logs.slice(-8).reverse().map((entry, index) => (
+              <div key={`${entry.timestamp}-${entry.action}-${index}`} className="rounded-md border border-border/60 bg-background/50 px-2 py-1.5">
+                <p className="font-mono text-[10px] text-foreground">
+                  {entry.state} · {entry.action}
+                </p>
+                {entry.transcript && (
+                  <p className="font-mono text-[10px] text-muted-foreground break-words">{entry.transcript}</p>
+                )}
+                {entry.detail && (
+                  <p className="font-mono text-[10px] text-muted-foreground break-words">{entry.detail}</p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

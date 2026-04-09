@@ -503,6 +503,7 @@ const Index = () => {
           lastHeard={arc.lastHeard}
           lastResponse={arc.lastResponse}
           error={arc.error}
+          logs={arc.logs}
           onStart={arc.enableArc}
           onStop={arc.disableArc}
         />
