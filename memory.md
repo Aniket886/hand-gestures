@@ -53,6 +53,11 @@ Key files:
   - recorded post-wake utterance sent to server transcription
   - server transcript is the source of truth for commands/questions
 - The recorder now includes a short pre-roll/grace period before silence detection and returns richer metadata (heard speech, duration, stop reason).
+- Recorder failure handling is now more specific:
+  - no clear speech detected
+  - captured audio too short / too small
+  - transcription failed
+  - transcript empty
 - Wake phrase: "Arc" with aliases (arc/ark/are).
 - Arc speech recognition is now tuned to `en-IN` for better Indian English capture.
 - Wake window: saying "Arc" arms assistant for ~8s; next phrase can omit "Arc".
@@ -86,6 +91,7 @@ Key files:
   - Records a short post-wake utterance with `MediaRecorder`
   - Stops on silence or max duration
   - Uses a pre-roll so the user can pause briefly after saying `Arc`
+  - Returns richer metadata such as `heardSpeech`, `durationMs`, `stopReason`, and `blobSize`
 - `src/lib/arcLogger.ts`
   - Records `{ state, transcript, action, timestamp, detail }`
   - Exposes logs on `window.__arcLogs` for quick debugging in DevTools
