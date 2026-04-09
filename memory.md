@@ -48,6 +48,10 @@ Key files:
 ### 4) Arc voice assistant (wake word + commands + Groq answers)
 - Arc is now app-scoped via `src/contexts/ArcContext.tsx` instead of page-local.
 - Arc now writes centralized debug logs via `src/lib/arcLogger.ts`.
+- Arc now uses a hybrid recognition flow:
+  - local browser wake detection for `Arc`
+  - recorded post-wake utterance sent to server transcription
+  - server transcript is the source of truth for commands/questions
 - Wake phrase: "Arc" with aliases (arc/ark/are).
 - Arc speech recognition is now tuned to `en-IN` for better Indian English capture.
 - Wake window: saying "Arc" arms assistant for ~8s; next phrase can omit "Arc".
@@ -75,7 +79,11 @@ Key files:
   - Owns a single `SpeechRecognition` instance and the Arc state machine
   - Registers page-specific handlers for home/presentation actions
   - Pauses speech recognition while TTS is speaking, then resumes
+  - Starts a short audio recording after wake and routes that utterance through server STT
   - Resets armed/transcript state after commands and queries
+- `src/hooks/useArcUtteranceRecorder.ts`
+  - Records a short post-wake utterance with `MediaRecorder`
+  - Stops on silence or max duration
 - `src/lib/arcLogger.ts`
   - Records `{ state, transcript, action, timestamp, detail }`
   - Exposes logs on `window.__arcLogs` for quick debugging in DevTools
@@ -129,6 +137,8 @@ Groq backend:
 - Vercel function: `api/arc.js`
 - Env var on Vercel: `GROQ_KEY`
 - Endpoint called from client: `POST /api/arc` with `{ prompt }`
+- Vercel function: `api/arc-transcribe.js`
+- Endpoint called from client: `POST /api/arc-transcribe` with base64 audio payload
 
 Tests:
 - `src/test/voiceAssistant.test.ts` covers normalize/wake parsing/wake window interpreter.
